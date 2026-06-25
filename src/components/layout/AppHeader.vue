@@ -3,7 +3,7 @@
     <div class="container header-inner">
       <RouterLink to="/" class="logo">
         <span class="logo-icon">☕</span>
-        <span class="logo-text">LinguaCafé</span>
+        <span class="logo-text">Language Cafe</span>
       </RouterLink>
 
       <nav class="main-nav" :class="{ 'nav-open': mobileMenuOpen }">
