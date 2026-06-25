@@ -1,5 +1,24 @@
 export type Language = 'en' | 'ja' | 'ko' | 'fr' | 'es' | 'de' | 'zh'
 
+export interface User {
+  id: string
+  name: string
+  email: string
+  passwordHash: string
+  avatar: string
+  createdAt: string
+  learningLanguages: Language[]
+  targetExam?: string
+  dailyGoalMinutes: number
+  resetToken?: string
+  resetTokenExpiry?: number
+}
+
+export interface AuthState {
+  currentUser: User | null
+  isLoggedIn: boolean
+}
+
 export type ExamType =
   | 'TOEIC'
   | 'TOEFL'
