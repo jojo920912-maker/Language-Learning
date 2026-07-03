@@ -73,6 +73,9 @@ export const useUserStore = defineStore('user', () => {
       passwordHash: '',
       ...profile,
     }
+    // 登入後載入雲端學習進度
+    const { useProgressStore } = await import('./progress')
+    await useProgressStore().loadFromCloud(fbUser.uid)
   }
 
   /** 等待 Firebase 還原登入狀態後 resolve，讓 router guard 拿到正確狀態 */
@@ -130,6 +133,9 @@ export const useUserStore = defineStore('user', () => {
   async function logout() {
     await signOut(auth)
     currentUser.value = null
+    // 清空記憶體中的學習進度，避免下一位登入者看到殘留資料
+    const { useProgressStore } = await import('./progress')
+    useProgressStore().reset()
   }
 
   /** 透過 Firebase 寄送密碼重設信，使用者點信中連結完成重設 */
