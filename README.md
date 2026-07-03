@@ -32,6 +32,15 @@
 - **🎯 考試準備** — 針對 TOEIC、TOEFL、IELTS、JLPT、TOPIK、DELF、DELE、Goethe、HSK 提供專屬題型、考試攻略與備考建議
 - **📡 時事新聞** — 各語言官方新聞媒體直達連結，含閱讀學習技巧
 
+### 會員系統
+- **🔑 登入 / 註冊** — 兩步驟註冊流程：基本資料 → 頭像、學習語言（可多選）、每日學習目標，含密碼強度計與顯示/隱藏密碼切換
+- **📬 忘記密碼** — 輸入 Email 取得重設連結（Demo 模式直接顯示連結），重設連結 30 分鐘內有效
+- **🔐 重設 / 修改密碼** — Token 驗證重設密碼；登入後也可在個人資料頁修改密碼
+- **👤 個人資料頁** — 修改暱稱、頭像、每日目標、學習語言，查看各語言技能進度與成就徽章
+- **🛡️ 路由保護** — 未登入自動導向登入頁，登入狀態以 localStorage 保存（重新整理不會登出）
+
+> ⚠️ 注意：此為前端展示專案，帳號資料儲存在瀏覽器 localStorage，密碼使用簡易雜湊，非正式產品等級的安全機制。
+
 ### 時事新聞來源
 | 語言 | 媒體 |
 |------|------|
@@ -62,12 +71,18 @@ language-learning/
 │   │   ├── languages.ts         # 語言設定與新聞來源
 │   │   ├── quizzes.ts           # 測驗題目庫
 │   │   └── vocabulary/          # 各語言單字庫
-│   ├── router/          # Vue Router 路由設定
+│   ├── router/          # Vue Router 路由設定（含登入驗證 Guard）
 │   ├── stores/
 │   │   ├── language.ts  # 語言選擇 Store
-│   │   └── progress.ts  # 學習進度 Store
+│   │   ├── progress.ts  # 學習進度 Store
+│   │   └── user.ts      # 使用者帳號 Store（登入/註冊/密碼重設）
 │   ├── types/           # TypeScript 類型定義
 │   └── views/           # 各功能頁面
+│       ├── auth/                # 會員相關頁面
+│       │   ├── LoginView.vue          # 登入
+│       │   ├── RegisterView.vue       # 註冊（兩步驟）
+│       │   ├── ForgotPasswordView.vue # 忘記密碼
+│       │   └── ResetPasswordView.vue  # 重設密碼
 │       ├── HomeView.vue
 │       ├── VocabularyView.vue
 │       ├── ReadingView.vue
@@ -76,7 +91,8 @@ language-learning/
 │       ├── SpeakingView.vue
 │       ├── DailyQuizView.vue
 │       ├── ExamPrepView.vue
-│       └── NewsView.vue
+│       ├── NewsView.vue
+│       └── ProfileView.vue      # 個人資料與帳號設定
 ```
 
 **Tech Stack：**
@@ -87,6 +103,7 @@ language-learning/
 - **工具函式：** VueUse
 - **字體：** Google Fonts (Playfair Display, Lato, Noto Sans JP/KR)
 - **TTS：** Web Speech API（瀏覽器內建，無需 API Key）
+- **帳號系統：** localStorage 模擬後端（Session 持久化、密碼重設 Token）
 
 ---
 
