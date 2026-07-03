@@ -9,36 +9,12 @@ import {
   updatePassword,
   reauthenticateWithCredential,
   EmailAuthProvider,
+  sendPasswordResetEmail,
   type User as FirebaseUser,
 } from 'firebase/auth'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
 import { auth, db } from '@/firebase'
 import type { User, Language } from '@/types'
-
-// ─── 舊 localStorage 版本（已停用，階段二確認無誤後刪除） ───
-const STORAGE_KEY = 'lc_users'
-const SESSION_KEY = 'lc_session'
-
-function hashPassword(pw: string): string {
-  let h = 0
-  for (let i = 0; i < pw.length; i++) {
-    h = (Math.imul(31, h) + pw.charCodeAt(i)) | 0
-  }
-  return h.toString(36) + pw.length.toString(36)
-}
-
-function getUsers(): User[] {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')
-  } catch {
-    return []
-  }
-}
-
-function saveUsers(users: User[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(users))
-}
-// ─── 舊版結束 ───
 
 interface UserProfile {
   name: string
@@ -156,31 +132,15 @@ export const useUserStore = defineStore('user', () => {
     currentUser.value = null
   }
 
-  // ─── 舊 localStorage 版忘記密碼（階段二改為 sendPasswordResetEmail） ───
-  function sendResetEmail(email: string): { success: boolean; error?: string; token?: string } {
-    const users = getUsers()
-    const idx = users.findIndex((u) => u.email === email.toLowerCase())
-    if (idx === -1 || !users[idx]) return { success: false, error: '找不到此 Email 的帳號' }
-    const token = Math.random().toString(36).slice(2) + Date.now().toString(36)
-    users[idx]!.resetToken = token
-    users[idx]!.resetTokenExpiry = Date.now() + 30 * 60 * 1000 // 30 min
-    saveUsers(users)
-    return { success: true, token }
+  /** 透過 Firebase 寄送密碼重設信，使用者點信中連結完成重設 */
+  async function sendResetEmail(email: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      await sendPasswordResetEmail(auth, email)
+      return { success: true }
+    } catch (e: any) {
+      return { success: false, error: authErrorMessage(e?.code ?? '') }
+    }
   }
-
-  function resetPassword(token: string, newPassword: string): { success: boolean; error?: string } {
-    const users = getUsers()
-    const idx = users.findIndex(
-      (u) => u.resetToken === token && u.resetTokenExpiry && u.resetTokenExpiry > Date.now(),
-    )
-    if (idx === -1 || !users[idx]) return { success: false, error: '重設連結無效或已過期' }
-    users[idx]!.passwordHash = hashPassword(newPassword)
-    users[idx]!.resetToken = undefined
-    users[idx]!.resetTokenExpiry = undefined
-    saveUsers(users)
-    return { success: true }
-  }
-  // ─── 舊版結束 ───
 
   async function updateProfile(
     changes: Partial<Pick<User, 'name' | 'avatar' | 'learningLanguages' | 'dailyGoalMinutes' | 'targetExam'>>,
@@ -224,7 +184,6 @@ export const useUserStore = defineStore('user', () => {
     login,
     logout,
     sendResetEmail,
-    resetPassword,
     updateProfile,
     changePassword,
   }

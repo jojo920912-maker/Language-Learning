@@ -28,20 +28,16 @@
         </form>
       </div>
 
-      <!-- Sent step (shows token for demo) -->
+      <!-- Sent step -->
       <div v-else-if="step === 'sent'" class="sent-section">
         <div class="sent-icon">📬</div>
         <h2 class="sent-title">重設連結已傳送！</h2>
-        <p class="sent-desc">已將密碼重設連結傳送至 <strong>{{ email }}</strong></p>
+        <p class="sent-desc">
+          已將密碼重設連結傳送至 <strong>{{ email }}</strong><br />
+          請至信箱點擊連結完成密碼重設（若沒收到請檢查垃圾郵件匣）。
+        </p>
 
-        <!-- Demo notice: show the reset token since there's no real email server -->
-        <div class="demo-notice">
-          <p class="demo-label">🛠 Demo 模式提示</p>
-          <p class="demo-desc">因為這是前端展示，沒有實際 Email 伺服器。請點擊下方按鈕直接前往重設密碼頁面：</p>
-          <RouterLink :to="`/reset-password?token=${resetToken}`" class="btn btn-primary demo-btn">
-            前往重設密碼 →
-          </RouterLink>
-        </div>
+        <RouterLink to="/login" class="btn btn-primary back-login-btn">返回登入 →</RouterLink>
 
         <p class="resend-hint">
           沒有收到？
@@ -69,7 +65,6 @@ const email = ref('')
 const emailError = ref('')
 const errorMsg = ref('')
 const loading = ref(false)
-const resetToken = ref('')
 
 async function onSendReset() {
   emailError.value = ''
@@ -77,13 +72,10 @@ async function onSendReset() {
   if (!email.value) { emailError.value = '請輸入 Email'; return }
 
   loading.value = true
-  await new Promise((r) => setTimeout(r, 800))
-
-  const result = userStore.sendResetEmail(email.value)
+  const result = await userStore.sendResetEmail(email.value)
   loading.value = false
 
   if (result.success) {
-    resetToken.value = result.token ?? ''
     step.value = 'sent'
   } else {
     errorMsg.value = result.error ?? '傳送失敗'
@@ -115,11 +107,8 @@ async function onSendReset() {
 .sent-section { text-align: center; }
 .sent-icon { font-size: 3.5rem; margin-bottom: 12px; }
 .sent-title { font-size: 1.4rem; margin-bottom: 8px; }
-.sent-desc { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 24px; }
-.demo-notice { background: rgba(200,151,58,0.08); border: 1px solid rgba(200,151,58,0.3); border-radius: var(--radius-md); padding: 16px 18px; margin-bottom: 20px; text-align: left; }
-.demo-label { font-size: 0.82rem; font-weight: 700; color: var(--accent); margin-bottom: 6px; }
-.demo-desc { font-size: 0.84rem; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5; }
-.demo-btn { display: inline-flex; justify-content: center; width: 100%; }
+.sent-desc { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 24px; line-height: 1.7; }
+.back-login-btn { display: inline-flex; margin-bottom: 20px; }
 .resend-hint { font-size: 0.85rem; color: var(--text-muted); }
 .resend-btn { background: none; color: var(--accent); font-size: 0.85rem; font-weight: 700; cursor: pointer; text-decoration: underline; }
 

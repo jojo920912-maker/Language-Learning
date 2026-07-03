@@ -23,12 +23,6 @@ const router = createRouter({
       component: () => import('@/views/auth/ForgotPasswordView.vue'),
       meta: { guest: true },
     },
-    {
-      path: '/reset-password',
-      name: 'reset-password',
-      component: () => import('@/views/auth/ResetPasswordView.vue'),
-      meta: { guest: true },
-    },
 
     // Protected routes
     {

@@ -10,8 +10,6 @@ export interface User {
   learningLanguages: Language[]
   targetExam?: string
   dailyGoalMinutes: number
-  resetToken?: string
-  resetTokenExpiry?: number
 }
 
 export interface AuthState {
