@@ -106,9 +106,7 @@ async function onSubmit() {
   if (!password.value) { errors.password = '請輸入密碼'; return }
 
   loading.value = true
-  await new Promise((r) => setTimeout(r, 600)) // simulate network
-
-  const result = userStore.login(email.value, password.value)
+  const result = await userStore.login(email.value, password.value)
   loading.value = false
 
   if (result.success) {

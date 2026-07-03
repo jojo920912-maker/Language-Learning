@@ -113,8 +113,8 @@ function selectLang(code: Language) {
   showLangMenu.value = false
 }
 
-function onLogout() {
-  userStore.logout()
+async function onLogout() {
+  await userStore.logout()
   showUserMenu.value = false
   router.push('/login')
 }

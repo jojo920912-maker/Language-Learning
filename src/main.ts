@@ -13,8 +13,9 @@ const pinia = createPinia()
 app.use(pinia)
 app.use(router)
 
-// Restore user session from localStorage before mounting
+// 等待 Firebase Auth 還原登入狀態後再掛載，
+// 避免重新整理時 router guard 誤判為未登入
 const userStore = useUserStore()
-userStore.init()
-
-app.mount('#app')
+userStore.init().then(() => {
+  app.mount('#app')
+})

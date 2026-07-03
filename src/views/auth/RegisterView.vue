@@ -193,11 +193,9 @@ async function onSubmit() {
   if (selectedLangs.value.length === 0) { errors.langs = '請至少選擇一種語言'; return }
   loading.value = true
   errorMsg.value = ''
-  await new Promise((r) => setTimeout(r, 700))
-  const result = userStore.register(name.value.trim(), email.value, password.value, selectedLangs.value)
+  const result = await userStore.register(name.value.trim(), email.value, password.value, selectedLangs.value)
   if (result.success) {
-    const user = userStore.currentUser
-    if (user) userStore.updateProfile({ avatar: avatar.value, dailyGoalMinutes: dailyGoal.value })
+    await userStore.updateProfile({ avatar: avatar.value, dailyGoalMinutes: dailyGoal.value })
     router.push('/')
   } else {
     errorMsg.value = result.error ?? '註冊失敗'

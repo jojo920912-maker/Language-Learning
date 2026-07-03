@@ -183,8 +183,8 @@ function toggleLang(code: Language) {
   else if (editLangs.value.length > 1) editLangs.value.splice(idx, 1)
 }
 
-function saveProfile() {
-  userStore.updateProfile({
+async function saveProfile() {
+  await userStore.updateProfile({
     name: editName.value.trim() || userStore.displayName,
     avatar: editAvatar.value,
     dailyGoalMinutes: editGoal.value,
@@ -194,14 +194,14 @@ function saveProfile() {
   setTimeout(() => { profileSaved.value = false }, 2500)
 }
 
-function onChangePw() {
+async function onChangePw() {
   Object.assign(pwErrors, { old: '', new: '', confirm: '' })
   pwError.value = ''
   pwSaved.value = false
   if (!oldPw.value) { pwErrors.old = '請輸入目前密碼'; return }
   if (newPw.value.length < 8) { pwErrors.new = '新密碼至少 8 個字元'; return }
   if (newPw.value !== confirmPw.value) { pwErrors.confirm = '兩次輸入不一致'; return }
-  const result = userStore.changePassword(oldPw.value, newPw.value)
+  const result = await userStore.changePassword(oldPw.value, newPw.value)
   if (result.success) {
     pwSaved.value = true
     oldPw.value = ''
@@ -213,8 +213,8 @@ function onChangePw() {
   }
 }
 
-function onLogout() {
-  userStore.logout()
+async function onLogout() {
+  await userStore.logout()
   router.push('/login')
 }
 

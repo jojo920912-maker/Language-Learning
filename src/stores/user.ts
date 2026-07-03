@@ -1,12 +1,25 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  updateProfile as fbUpdateProfile,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  type User as FirebaseUser,
+} from 'firebase/auth'
+import { doc, getDoc, setDoc } from 'firebase/firestore'
+import { auth, db } from '@/firebase'
 import type { User, Language } from '@/types'
 
+// ─── 舊 localStorage 版本（已停用，階段二確認無誤後刪除） ───
 const STORAGE_KEY = 'lc_users'
 const SESSION_KEY = 'lc_session'
 
 function hashPassword(pw: string): string {
-  // Simple deterministic hash for demo purposes (not cryptographically secure)
   let h = 0
   for (let i = 0; i < pw.length; i++) {
     h = (Math.imul(31, h) + pw.charCodeAt(i)) | 0
@@ -25,6 +38,31 @@ function getUsers(): User[] {
 function saveUsers(users: User[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(users))
 }
+// ─── 舊版結束 ───
+
+interface UserProfile {
+  name: string
+  avatar: string
+  learningLanguages: Language[]
+  dailyGoalMinutes: number
+  targetExam?: string
+  createdAt: string
+}
+
+function authErrorMessage(code: string): string {
+  const map: Record<string, string> = {
+    'auth/email-already-in-use': '此 Email 已被註冊過',
+    'auth/invalid-email': 'Email 格式不正確',
+    'auth/weak-password': '密碼強度不足（至少 6 個字元）',
+    'auth/user-not-found': '找不到此 Email 的帳號',
+    'auth/wrong-password': '密碼不正確',
+    'auth/invalid-credential': 'Email 或密碼不正確',
+    'auth/too-many-requests': '嘗試次數過多，請稍後再試',
+    'auth/network-request-failed': '網路連線失敗，請檢查網路',
+    'auth/requires-recent-login': '此操作需要重新登入後再試',
+  }
+  return map[code] ?? `發生錯誤（${code}）`
+}
 
 export const useUserStore = defineStore('user', () => {
   const currentUser = ref<User | null>(null)
@@ -33,65 +71,92 @@ export const useUserStore = defineStore('user', () => {
   const displayName = computed(() => currentUser.value?.name ?? '')
   const avatarEmoji = computed(() => currentUser.value?.avatar ?? '👤')
 
-  // Restore session on app init
-  function init() {
+  function profileDocRef(uid: string) {
+    return doc(db, 'users', uid)
+  }
+
+  async function loadProfile(fbUser: FirebaseUser): Promise<void> {
+    let profile: UserProfile = {
+      name: fbUser.displayName ?? fbUser.email?.split('@')[0] ?? '學習者',
+      avatar: '☕',
+      learningLanguages: ['en'],
+      dailyGoalMinutes: 15,
+      createdAt: fbUser.metadata.creationTime ?? new Date().toISOString(),
+    }
     try {
-      const session = localStorage.getItem(SESSION_KEY)
-      if (session) {
-        const { userId } = JSON.parse(session)
-        const users = getUsers()
-        const user = users.find((u) => u.id === userId)
-        if (user) currentUser.value = user
+      const snap = await getDoc(profileDocRef(fbUser.uid))
+      if (snap.exists()) {
+        profile = { ...profile, ...(snap.data() as Partial<UserProfile>) }
       }
-    } catch {
-      /* ignore */
+    } catch (e) {
+      console.error('載入使用者資料失敗：', e)
+    }
+    currentUser.value = {
+      id: fbUser.uid,
+      email: fbUser.email ?? '',
+      passwordHash: '',
+      ...profile,
     }
   }
 
-  function register(
+  /** 等待 Firebase 還原登入狀態後 resolve，讓 router guard 拿到正確狀態 */
+  function init(): Promise<void> {
+    return new Promise((resolve) => {
+      let resolved = false
+      onAuthStateChanged(auth, async (fbUser) => {
+        if (fbUser) {
+          await loadProfile(fbUser)
+        } else {
+          currentUser.value = null
+        }
+        if (!resolved) {
+          resolved = true
+          resolve()
+        }
+      })
+    })
+  }
+
+  async function register(
     name: string,
     email: string,
     password: string,
     languages: Language[] = ['en'],
-  ): { success: boolean; error?: string } {
-    const users = getUsers()
-    if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
-      return { success: false, error: '此 Email 已被註冊過' }
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, password)
+      await fbUpdateProfile(cred.user, { displayName: name })
+      const profile: UserProfile = {
+        name,
+        avatar: '☕',
+        learningLanguages: languages,
+        dailyGoalMinutes: 15,
+        createdAt: new Date().toISOString(),
+      }
+      await setDoc(profileDocRef(cred.user.uid), profile)
+      await loadProfile(cred.user)
+      return { success: true }
+    } catch (e: any) {
+      return { success: false, error: authErrorMessage(e?.code ?? '') }
     }
-    const user: User = {
-      id: Date.now().toString(36) + Math.random().toString(36).slice(2),
-      name,
-      email: email.toLowerCase(),
-      passwordHash: hashPassword(password),
-      avatar: '☕',
-      createdAt: new Date().toISOString(),
-      learningLanguages: languages,
-      dailyGoalMinutes: 15,
-    }
-    users.push(user)
-    saveUsers(users)
-    currentUser.value = user
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ userId: user.id }))
-    return { success: true }
   }
 
-  function login(email: string, password: string): { success: boolean; error?: string } {
-    const users = getUsers()
-    const user = users.find((u) => u.email === email.toLowerCase())
-    if (!user) return { success: false, error: '找不到此 Email 的帳號' }
-    if (user.passwordHash !== hashPassword(password)) {
-      return { success: false, error: '密碼不正確' }
+  async function login(email: string, password: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, password)
+      await loadProfile(cred.user)
+      return { success: true }
+    } catch (e: any) {
+      return { success: false, error: authErrorMessage(e?.code ?? '') }
     }
-    currentUser.value = user
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ userId: user.id }))
-    return { success: true }
   }
 
-  function logout() {
+  async function logout() {
+    await signOut(auth)
     currentUser.value = null
-    localStorage.removeItem(SESSION_KEY)
   }
 
+  // ─── 舊 localStorage 版忘記密碼（階段二改為 sendPasswordResetEmail） ───
   function sendResetEmail(email: string): { success: boolean; error?: string; token?: string } {
     const users = getUsers()
     const idx = users.findIndex((u) => u.email === email.toLowerCase())
@@ -100,7 +165,6 @@ export const useUserStore = defineStore('user', () => {
     users[idx]!.resetToken = token
     users[idx]!.resetTokenExpiry = Date.now() + 30 * 60 * 1000 // 30 min
     saveUsers(users)
-    // In a real app, send email. Here we return the token so the UI can show it.
     return { success: true, token }
   }
 
@@ -116,30 +180,38 @@ export const useUserStore = defineStore('user', () => {
     saveUsers(users)
     return { success: true }
   }
+  // ─── 舊版結束 ───
 
-  function updateProfile(changes: Partial<Pick<User, 'name' | 'avatar' | 'learningLanguages' | 'dailyGoalMinutes' | 'targetExam'>>) {
+  async function updateProfile(
+    changes: Partial<Pick<User, 'name' | 'avatar' | 'learningLanguages' | 'dailyGoalMinutes' | 'targetExam'>>,
+  ) {
     if (!currentUser.value) return
-    const users = getUsers()
-    const idx = users.findIndex((u) => u.id === currentUser.value!.id)
-    if (idx === -1 || !users[idx]) return
-    Object.assign(users[idx]!, changes)
-    Object.assign(currentUser.value, changes)
-    saveUsers(users)
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ userId: currentUser.value.id }))
+    try {
+      await setDoc(profileDocRef(currentUser.value.id), changes, { merge: true })
+      if (changes.name && auth.currentUser) {
+        await fbUpdateProfile(auth.currentUser, { displayName: changes.name })
+      }
+      Object.assign(currentUser.value, changes)
+    } catch (e) {
+      console.error('儲存個人資料失敗：', e)
+    }
   }
 
-  function changePassword(oldPw: string, newPw: string): { success: boolean; error?: string } {
-    if (!currentUser.value) return { success: false, error: '未登入' }
-    if (currentUser.value.passwordHash !== hashPassword(oldPw)) {
-      return { success: false, error: '目前密碼不正確' }
+  async function changePassword(oldPw: string, newPw: string): Promise<{ success: boolean; error?: string }> {
+    const fbUser = auth.currentUser
+    if (!fbUser || !fbUser.email) return { success: false, error: '未登入' }
+    try {
+      const credential = EmailAuthProvider.credential(fbUser.email, oldPw)
+      await reauthenticateWithCredential(fbUser, credential)
+      await updatePassword(fbUser, newPw)
+      return { success: true }
+    } catch (e: any) {
+      const code = e?.code ?? ''
+      if (code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+        return { success: false, error: '目前密碼不正確' }
+      }
+      return { success: false, error: authErrorMessage(code) }
     }
-    const users = getUsers()
-    const idx = users.findIndex((u) => u.id === currentUser.value!.id)
-    if (idx === -1 || !users[idx]) return { success: false, error: '找不到使用者' }
-    users[idx]!.passwordHash = hashPassword(newPw)
-    currentUser.value.passwordHash = hashPassword(newPw)
-    saveUsers(users)
-    return { success: true }
   }
 
   return {
