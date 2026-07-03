@@ -1,7 +1,27 @@
 <script setup lang="ts">
-import { RouterView } from 'vue-router'
+import { watch } from 'vue'
+import { RouterView, useRoute, useRouter } from 'vue-router'
 import AppHeader from '@/components/layout/AppHeader.vue'
 import MobileBottomNav from '@/components/layout/MobileBottomNav.vue'
+import { useUserStore } from '@/stores/user'
+
+const route = useRoute()
+const router = useRouter()
+const userStore = useUserStore()
+
+// 登入狀態改變時（含跨分頁同步）自動導向正確頁面：
+// - 已登入卻停在登入/註冊頁 → 導回首頁
+// - 登出後停在需登入的頁面 → 導向登入頁
+watch(
+  () => userStore.isLoggedIn,
+  (loggedIn) => {
+    if (loggedIn && route.meta.guest) {
+      router.replace((route.query.redirect as string) || '/')
+    } else if (!loggedIn && route.meta.requiresAuth) {
+      router.replace('/login')
+    }
+  },
+)
 </script>
 
 <template>
