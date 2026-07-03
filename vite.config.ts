@@ -10,7 +10,8 @@ export default defineConfig({
     vue(),
     vueDevTools(),
   ],
-  base: '/Language-Learning/',
+  // 預設給 Firebase Hosting（根目錄）；要部署 GitHub Pages 時執行 npm run build:gh
+  base: '/',
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
