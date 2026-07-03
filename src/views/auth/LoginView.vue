@@ -3,7 +3,7 @@
     <div class="auth-card card">
       <div class="auth-logo">
         <span>☕</span>
-        <h1>Language Cafe</h1>
+        <h1>Sip & Speak</h1>
         <p>歡迎回來，繼續你的學習旅程</p>
       </div>
 
