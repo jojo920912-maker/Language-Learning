@@ -23,6 +23,13 @@ const router = createRouter({
       component: () => import('@/views/auth/ForgotPasswordView.vue'),
       meta: { guest: true },
     },
+    {
+      // Firebase 信件連結的自訂處理頁（重設密碼等）
+      // 不加 guest meta：已登入者點信中連結也應能開啟
+      path: '/auth-action',
+      name: 'auth-action',
+      component: () => import('@/views/auth/AuthActionView.vue'),
+    },
 
     // Protected routes
     {
