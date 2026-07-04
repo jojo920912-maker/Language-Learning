@@ -73,9 +73,11 @@
             v-for="lang in languages"
             :key="lang.code"
             class="lang-card"
-            :class="{ active: currentLanguage === lang.code }"
+            :class="{ active: currentLanguage === lang.code, 'coming-soon': isComingSoon(lang.code) }"
+            :disabled="isComingSoon(lang.code)"
             @click="selectLanguage(lang.code)"
           >
+            <span v-if="isComingSoon(lang.code)" class="coming-soon-badge">Coming Soon</span>
             <span class="lang-flag">{{ lang.flag }}</span>
             <span class="lang-card-name">{{ lang.nativeName }}</span>
             <span class="lang-card-en">{{ lang.name }}</span>
@@ -141,6 +143,7 @@ import { RouterLink } from 'vue-router'
 import { useLanguageStore } from '@/stores/language'
 import { useProgressStore } from '@/stores/progress'
 import { LANGUAGES, EXAM_LABELS } from '@/data/languages'
+import { COMING_SOON_LANGS } from '@/data/decks'
 import type { Language, ExamType } from '@/types'
 
 const langStore = useLanguageStore()
@@ -169,7 +172,12 @@ const skillNames: Record<string, string> = {
   listening: '聽力', reading: '閱讀', writing: '寫作', speaking: '口說', vocabulary: '單字', grammar: '文法',
 }
 
+function isComingSoon(code: Language) {
+  return COMING_SOON_LANGS.includes(code)
+}
+
 function selectLanguage(code: Language) {
+  if (isComingSoon(code)) return
   langStore.setLanguage(code)
 }
 </script>
@@ -202,8 +210,22 @@ function selectLanguage(code: Language) {
 .lang-section { margin-bottom: 48px; }
 .lang-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
 .lang-card { background: var(--bg-card); border: 2px solid var(--border); border-radius: var(--radius-md); padding: 20px 16px; display: flex; flex-direction: column; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s; text-align: center; }
-.lang-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow-card); }
+.lang-card:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow-card); }
 .lang-card.active { border-color: var(--accent); background: rgba(200, 151, 58, 0.06); }
+.lang-card.coming-soon { position: relative; opacity: 0.55; cursor: not-allowed; filter: grayscale(0.5); }
+.coming-soon-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--color-lavender);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
 .lang-flag { font-size: 2.2rem; }
 .lang-card-name { font-size: 0.95rem; font-weight: 700; color: var(--text-primary); }
 .lang-card-en { font-size: 0.78rem; color: var(--text-muted); }

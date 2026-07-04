@@ -7,43 +7,68 @@
           {{ currentConfig.flag }} {{ currentConfig.name }} 單字庫 · 點擊 🔉 收聽發音
         </p>
       </div>
-      <div class="header-filters">
-        <select v-model="filterLevel" class="filter-select">
-          <option value="">全部程度</option>
-          <option value="beginner">初級</option>
-          <option value="intermediate">中級</option>
-          <option value="advanced">高級</option>
-        </select>
-        <input v-model="searchQuery" class="search-input" placeholder="搜尋單字..." />
-      </div>
+      <input v-model="searchQuery" class="search-input" placeholder="搜尋單字..." />
     </div>
 
-    <div class="vocab-toolbar">
-      <div class="vocab-stats">
-        <span>共 {{ filteredWords.length }} 個單字</span>
-        <span class="divider-dot">·</span>
-        <span>已學習 {{ learnedCount }} 個</span>
-        <span class="divider-dot">·</span>
-        <span>書籤 {{ bookmarkCount }} 個</span>
-      </div>
-      <div class="view-toggles">
-        <button class="btn btn-ghost toggle-btn" :class="{ active: showBookmarksOnly }" @click="showBookmarksOnly = !showBookmarksOnly">
-          🔖 只看書籤
-        </button>
-        <button class="btn btn-ghost toggle-btn" :class="{ active: showLearnedOnly }" @click="showLearnedOnly = !showLearnedOnly">
-          ✓ 只看已學
+    <!-- Coming Soon 語言 -->
+    <div v-if="decks.length === 0" class="empty-state">
+      <p class="empty-icon">🚧</p>
+      <p class="empty-text">{{ currentConfig.name }} 單字庫即將推出，敬請期待！</p>
+    </div>
+
+    <template v-else>
+      <!-- Deck（級數）選擇 -->
+      <div class="deck-chips">
+        <button
+          v-for="deck in decks"
+          :key="deck.id"
+          class="chip"
+          :class="{ active: currentDeckId === deck.id }"
+          @click="selectDeck(deck.id)"
+        >
+          {{ deck.label }}
         </button>
       </div>
-    </div>
 
-    <div v-if="filteredWords.length === 0" class="empty-state">
-      <p class="empty-icon">🔍</p>
-      <p class="empty-text">找不到符合條件的單字</p>
-    </div>
+      <div class="vocab-toolbar">
+        <div class="vocab-stats">
+          <span>共 {{ filteredWords.length }} 個單字</span>
+          <span class="divider-dot">·</span>
+          <span>已學習 {{ learnedCount }} 個</span>
+          <span class="divider-dot">·</span>
+          <span>書籤 {{ bookmarkCount }} 個</span>
+        </div>
+        <div class="view-toggles">
+          <button class="btn btn-ghost toggle-btn" :class="{ active: showBookmarksOnly }" @click="showBookmarksOnly = !showBookmarksOnly">
+            🔖 只看書籤
+          </button>
+          <button class="btn btn-ghost toggle-btn" :class="{ active: showLearnedOnly }" @click="showLearnedOnly = !showLearnedOnly">
+            ✓ 只看已學
+          </button>
+        </div>
+      </div>
 
-    <div class="words-grid" v-else>
-      <WordCard v-for="word in filteredWords" :key="word.id" :word="word" />
-    </div>
+      <div v-if="loading" class="empty-state">
+        <p class="empty-icon">⏳</p>
+        <p class="empty-text">單字庫載入中...</p>
+      </div>
+
+      <div v-else-if="filteredWords.length === 0" class="empty-state">
+        <p class="empty-icon">🔍</p>
+        <p class="empty-text">找不到符合條件的單字</p>
+      </div>
+
+      <template v-else>
+        <div class="words-grid">
+          <WordCard v-for="word in visibleWords" :key="word.id" :word="word" />
+        </div>
+        <div v-if="visibleWords.length < filteredWords.length" class="load-more-row">
+          <button class="btn btn-primary" @click="visibleCount += PAGE_SIZE">
+            載入更多（{{ visibleWords.length }} / {{ filteredWords.length }}）
+          </button>
+        </div>
+      </template>
+    </template>
 
     <div class="news-source-note">
       <p>📡 學習語境搭配 <strong>{{ currentConfig.newsSource.name }}</strong> 時事內容 ·
@@ -54,45 +79,86 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useLanguageStore } from '@/stores/language'
 import { useProgressStore } from '@/stores/progress'
-import { englishVocabulary } from '@/data/vocabulary/english'
-import { japaneseVocabulary } from '@/data/vocabulary/japanese'
-import { koreanVocabulary } from '@/data/vocabulary/korean'
+import { DECKS, loadDeck, type DeckInfo } from '@/data/decks'
 import WordCard from '@/components/vocabulary/WordCard.vue'
-import type { VocabularyWord } from '@/types'
+import type { VocabularyWord, WordEntry } from '@/types'
+
+const PAGE_SIZE = 30
 
 const langStore = useLanguageStore()
 const progressStore = useProgressStore()
 
 const currentConfig = computed(() => langStore.currentConfig)
+const decks = computed<DeckInfo[]>(() => DECKS[langStore.currentLanguage] ?? [])
 
-const filterLevel = ref('')
+const currentDeckId = ref('')
+const rawWords = ref<WordEntry[]>([])
+const loading = ref(false)
 const searchQuery = ref('')
 const showBookmarksOnly = ref(false)
 const showLearnedOnly = ref(false)
+const visibleCount = ref(PAGE_SIZE)
 
-const allWords = computed<VocabularyWord[]>(() => {
-  const map: Record<string, VocabularyWord[]> = {
-    en: englishVocabulary,
-    ja: japaneseVocabulary,
-    ko: koreanVocabulary,
-  }
-  return map[langStore.currentLanguage] ?? []
-})
+async function selectDeck(deckId: string) {
+  currentDeckId.value = deckId
+  loading.value = true
+  visibleCount.value = PAGE_SIZE
+  rawWords.value = await loadDeck(langStore.currentLanguage, deckId)
+  loading.value = false
+}
+
+// 語言切換時自動載入第一個 deck
+watch(
+  () => langStore.currentLanguage,
+  () => {
+    rawWords.value = []
+    currentDeckId.value = ''
+    const first = decks.value[0]
+    if (first) selectDeck(first.id)
+  },
+  { immediate: true },
+)
+
+const currentDeck = computed(() => decks.value.find((d) => d.id === currentDeckId.value))
+
+/** WordEntry → WordCard 用的 VocabularyWord 格式 */
+const allWords = computed<VocabularyWord[]>(() =>
+  rawWords.value.map((w) => ({
+    id: `${langStore.currentLanguage}-${currentDeckId.value}-${w.word}`,
+    word: w.word,
+    language: langStore.currentLanguage,
+    phonetic: { ipa: '', pronunciation: w.reading ?? undefined },
+    partOfSpeech: '',
+    definition: w.meaning,
+    definitionTranslation: '',
+    examples: w.exampleSentence
+      ? [{ text: w.exampleSentence, translation: w.exampleTranslation ?? '' }]
+      : [],
+    level: currentDeck.value?.difficulty ?? 'intermediate',
+    tags: [w.level, ...(w.needsTranslation ? ['待翻譯'] : [])],
+  })),
+)
 
 const filteredWords = computed(() => {
   let words = allWords.value
-  if (filterLevel.value) words = words.filter((w) => w.level === filterLevel.value)
   if (searchQuery.value) {
     const q = searchQuery.value.toLowerCase()
-    words = words.filter((w) => w.word.toLowerCase().includes(q) || w.definition.toLowerCase().includes(q) || w.definitionTranslation.includes(q))
+    words = words.filter(
+      (w) =>
+        w.word.toLowerCase().includes(q) ||
+        w.definition.toLowerCase().includes(q) ||
+        (w.phonetic.pronunciation ?? '').toLowerCase().includes(q),
+    )
   }
   if (showBookmarksOnly.value) words = words.filter((w) => progressStore.bookmarkedWords.has(w.id))
   if (showLearnedOnly.value) words = words.filter((w) => progressStore.learnedWords.has(w.id))
   return words
 })
+
+const visibleWords = computed(() => filteredWords.value.slice(0, visibleCount.value))
 
 const learnedCount = computed(() => allWords.value.filter((w) => progressStore.learnedWords.has(w.id)).length)
 const bookmarkCount = computed(() => allWords.value.filter((w) => progressStore.bookmarkedWords.has(w.id)).length)
@@ -107,8 +173,7 @@ const bookmarkCount = computed(() => allWords.value.filter((w) => progressStore.
   margin-bottom: 20px;
   flex-wrap: wrap;
 }
-.header-filters { display: flex; gap: 10px; flex-wrap: wrap; }
-.filter-select, .search-input {
+.search-input {
   padding: 8px 12px;
   border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);
@@ -117,18 +182,16 @@ const bookmarkCount = computed(() => allWords.value.filter((w) => progressStore.
   font-size: 0.88rem;
   outline: none;
   transition: border-color 0.15s;
+  min-width: 200px;
 }
-.filter-select:focus, .search-input:focus { border-color: var(--accent); }
-.search-input { min-width: 180px; }
+.search-input:focus { border-color: var(--accent); }
 
-.vocab-toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-}
+.deck-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+.chip { padding: 7px 16px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--bg-card); color: var(--text-secondary); font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.15s; }
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.chip.active { border-color: var(--accent); background: rgba(200, 151, 58, 0.12); color: var(--accent); }
+
+.vocab-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
 .vocab-stats { font-size: 0.85rem; color: var(--text-muted); display: flex; gap: 8px; flex-wrap: wrap; }
 .divider-dot { color: var(--border); }
 .view-toggles { display: flex; gap: 8px; }
@@ -136,6 +199,7 @@ const bookmarkCount = computed(() => allWords.value.filter((w) => progressStore.
 .toggle-btn.active { background: rgba(200, 151, 58, 0.12); border-color: var(--accent); color: var(--accent); }
 
 .words-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
+.load-more-row { display: flex; justify-content: center; margin-top: 28px; }
 
 .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
 .empty-icon { font-size: 3rem; margin-bottom: 12px; }

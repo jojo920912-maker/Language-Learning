@@ -17,6 +17,20 @@ export interface AuthState {
   isLoggedIn: boolean
 }
 
+/** 單字庫統一格式：src/data/{lang}/{exam}/words.json 每筆的結構 */
+export interface WordEntry {
+  word: string
+  /** 日文=假名、中文=拼音、韓文=發音；英文為 null */
+  reading: string | null
+  /** 繁體中文釋義（needsTranslation 為 true 時是英文原文或空字串，待批次翻譯） */
+  meaning: string
+  /** 檢定級數，如 "N5"、"HSK1"、"TOEIC"、"TOPIK I" */
+  level: string
+  exampleSentence: string | null
+  exampleTranslation: string | null
+  needsTranslation?: boolean
+}
+
 export type ExamType =
   | 'TOEIC'
   | 'TOEFL'

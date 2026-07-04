@@ -10,7 +10,7 @@
           <span v-if="word.phonetic.romaji" class="romanization">{{ word.phonetic.romaji }}</span>
           <span v-if="word.phonetic.pronunciation" class="romanization">{{ word.phonetic.pronunciation }}</span>
         </div>
-        <span class="part-of-speech">{{ word.partOfSpeech }}</span>
+        <span v-if="word.partOfSpeech" class="part-of-speech">{{ word.partOfSpeech }}</span>
       </div>
 
       <div class="word-actions">
@@ -29,9 +29,9 @@
     </div>
 
     <div class="word-body">
-      <div class="definition-block">
-        <p class="definition">{{ word.definition }}</p>
-        <p class="definition-translation">{{ word.definitionTranslation }}</p>
+      <div class="definition-block" v-if="word.definition || word.definitionTranslation">
+        <p v-if="word.definition" class="definition">{{ word.definition }}</p>
+        <p v-if="word.definitionTranslation" class="definition-translation">{{ word.definitionTranslation }}</p>
       </div>
 
       <div class="memory-tip" v-if="word.memoryTip && showDetails">
@@ -39,7 +39,7 @@
         <span>{{ word.memoryTip }}</span>
       </div>
 
-      <div class="examples-section" v-if="showDetails">
+      <div class="examples-section" v-if="showDetails && word.examples.length">
         <p class="examples-title">範例句子</p>
         <div v-for="(ex, i) in word.examples" :key="i" class="example-item">
           <div class="example-text-row">
