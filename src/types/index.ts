@@ -56,6 +56,8 @@ export type ExamType =
   | 'HSK2'
   | 'HSK3'
   | 'HSK4'
+  | 'HSK5'
+  | 'HSK6'
 
 export type SkillType = 'listening' | 'reading' | 'writing' | 'speaking' | 'vocabulary' | 'grammar'
 export type DifficultyLevel = 'beginner' | 'intermediate' | 'advanced'

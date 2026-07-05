@@ -98,6 +98,15 @@ const router = createRouter({
   },
 })
 
+// 部署新版後，舊分頁的 lazy chunk 檔名會失效（404），導致點導覽列沒反應。
+// 偵測到 chunk 載入失敗時改用整頁載入目標路由，自動取得新版。
+router.onError((error, to) => {
+  const msg = String(error?.message ?? error)
+  if (msg.includes('dynamically imported module') || msg.includes('Importing a module script failed')) {
+    window.location.href = to.fullPath
+  }
+})
+
 router.beforeEach((to) => {
   const userStore = useUserStore()
   if (to.meta.requiresAuth && !userStore.isLoggedIn) {
