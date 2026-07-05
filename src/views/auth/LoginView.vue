@@ -74,12 +74,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { ref, reactive, onMounted } from 'vue'
+import { RouterLink, useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
+
+// 已登入者直接離開登入頁（例如從書籤或舊分頁開啟）
+onMounted(() => {
+  if (userStore.isLoggedIn) {
+    router.replace((route.query.redirect as string) || '/')
+  }
+})
 
 const email = ref('')
 const password = ref('')

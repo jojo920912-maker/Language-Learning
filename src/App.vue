@@ -13,14 +13,15 @@ const userStore = useUserStore()
 // - 已登入卻停在登入/註冊頁 → 導回首頁
 // - 登出後停在需登入的頁面 → 導向登入頁
 watch(
-  () => userStore.isLoggedIn,
-  (loggedIn) => {
+  [() => userStore.isLoggedIn, () => route.fullPath],
+  ([loggedIn]) => {
     if (loggedIn && route.meta.guest) {
       router.replace((route.query.redirect as string) || '/')
     } else if (!loggedIn && route.meta.requiresAuth) {
       router.replace('/login')
     }
   },
+  { immediate: true },
 )
 </script>
 
