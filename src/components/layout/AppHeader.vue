@@ -26,13 +26,11 @@
             v-for="lang in languages"
             :key="lang.code"
             class="lang-option"
-            :class="{ active: lang.code === currentLanguage, disabled: isComingSoon(lang.code) }"
-            :disabled="isComingSoon(lang.code)"
+            :class="{ active: lang.code === currentLanguage }"
             @click="selectLang(lang.code)"
           >
             <span>{{ lang.flag }}</span>
             <span>{{ lang.nativeName }}</span>
-            <span v-if="isComingSoon(lang.code)" class="soon-tag">soon</span>
           </button>
         </div>
 
@@ -87,7 +85,6 @@ import { RouterLink, useRouter } from 'vue-router'
 import { useLanguageStore } from '@/stores/language'
 import { useUserStore } from '@/stores/user'
 import { LANGUAGES } from '@/data/languages'
-import { COMING_SOON_LANGS } from '@/data/decks'
 import type { Language } from '@/types'
 
 const langStore = useLanguageStore()
@@ -111,12 +108,7 @@ const navItems = [
   { to: '/exam', icon: '🎯', label: '考試準備' },
 ]
 
-function isComingSoon(code: Language) {
-  return COMING_SOON_LANGS.includes(code)
-}
-
 function selectLang(code: Language) {
-  if (isComingSoon(code)) return
   langStore.setLanguage(code)
   showLangMenu.value = false
 }
@@ -173,8 +165,6 @@ async function onLogout() {
 .lang-option { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); font-size: 0.85rem; color: var(--text-secondary); background: transparent; width: 100%; transition: all 0.15s; cursor: pointer; }
 .lang-option:hover { background: var(--bg-secondary); color: var(--accent); }
 .lang-option.active { background: rgba(200, 151, 58, 0.12); color: var(--accent); font-weight: 700; }
-.lang-option.disabled { opacity: 0.45; cursor: not-allowed; }
-.soon-tag { font-size: 0.6rem; background: var(--color-lavender); color: #fff; padding: 1px 5px; border-radius: 8px; font-weight: 700; }
 
 /* User menu */
 .user-menu-wrap { position: relative; }

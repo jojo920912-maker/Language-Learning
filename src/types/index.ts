@@ -1,4 +1,4 @@
-export type Language = 'en' | 'ja' | 'ko' | 'fr' | 'es' | 'de' | 'zh'
+export type Language = 'en' | 'ja' | 'ko' | 'zh'
 
 export interface User {
   id: string
@@ -42,16 +42,6 @@ export type ExamType =
   | 'JLPT_N5'
   | 'TOPIK_I'
   | 'TOPIK_II'
-  | 'DELF_A1'
-  | 'DELF_A2'
-  | 'DELF_B1'
-  | 'DELF_B2'
-  | 'DELE_A1'
-  | 'DELE_A2'
-  | 'DELE_B1'
-  | 'DELE_B2'
-  | 'GOETHE_A1'
-  | 'GOETHE_B1'
   | 'HSK1'
   | 'HSK2'
   | 'HSK3'

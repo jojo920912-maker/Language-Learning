@@ -156,10 +156,12 @@ const examInfos: ExamInfo[] = [
   { type: 'JLPT_N1', icon: '🌸', levelDesc: 'JLPT N1', description: '能理解廣泛場合中使用的日語，為最高等級', sections: ['文字語彙', '文法閱讀', '聽解'], duration: '170 分鐘', score: '0-180 分', language: 'ja' },
   { type: 'TOPIK_I', icon: '🇰🇷', levelDesc: 'TOPIK I', description: '韓語能力考試初級，對應 1-2 級', sections: ['聽力', '閱讀'], duration: '100 分鐘', score: '0-200 分', language: 'ko' },
   { type: 'TOPIK_II', icon: '🇰🇷', levelDesc: 'TOPIK II', description: '韓語能力考試中高級，對應 3-6 級', sections: ['聽力', '閱讀', '寫作'], duration: '180 分鐘', score: '0-300 分', language: 'ko' },
-  { type: 'DELF_B1', icon: '🇫🇷', levelDesc: 'DELF B1', description: '法語獨立使用者，能理解日常生活相關主題', sections: ['聽力', '閱讀', '寫作', '口說'], duration: '~1.7 小時', score: '0-100 分', language: 'fr' },
-  { type: 'DELE_B1', icon: '🇪🇸', levelDesc: 'DELE B1', description: '西班牙語能力認證 B1 中級', sections: ['閱讀', '聽力', '寫作', '口說'], duration: '~3 小時', score: '合格/不合格', language: 'es' },
-  { type: 'GOETHE_B1', icon: '🇩🇪', levelDesc: 'Goethe B1', description: '德語 B1 證書，能在德語環境中獨立生活', sections: ['閱讀', '聽力', '寫作', '口說'], duration: '~3.25 小時', score: '0-100 分', language: 'de' },
+  { type: 'HSK1', icon: '🇨🇳', levelDesc: 'HSK 1級', description: '漢語水平考試 1 級，掌握最基礎的漢語詞彙和句型', sections: ['聽力', '閱讀'], duration: '40 分鐘', score: '0-200 分', language: 'zh' },
+  { type: 'HSK2', icon: '🇨🇳', levelDesc: 'HSK 2級', description: '漢語水平考試 2 級，能進行簡單日常交流', sections: ['聽力', '閱讀'], duration: '55 分鐘', score: '0-200 分', language: 'zh' },
   { type: 'HSK3', icon: '🇨🇳', levelDesc: 'HSK 3級', description: '漢語水平考試 3 級，能用漢語進行一般性交流', sections: ['聽力', '閱讀', '書寫'], duration: '85 分鐘', score: '0-300 分', language: 'zh' },
+  { type: 'HSK4', icon: '🇨🇳', levelDesc: 'HSK 4級', description: '漢語水平考試 4 級，能較流利地與母語者交流', sections: ['聽力', '閱讀', '書寫'], duration: '100 分鐘', score: '0-300 分', language: 'zh' },
+  { type: 'HSK5', icon: '🇨🇳', levelDesc: 'HSK 5級', description: '漢語水平考試 5 級，能閱讀報刊雜誌、欣賞影視節目', sections: ['聽力', '閱讀', '書寫'], duration: '125 分鐘', score: '0-300 分', language: 'zh' },
+  { type: 'HSK6', icon: '🇨🇳', levelDesc: 'HSK 6級', description: '漢語水平考試 6 級，能輕鬆理解聽到或讀到的漢語資訊', sections: ['聽力', '閱讀', '書寫'], duration: '140 分鐘', score: '0-300 分', language: 'zh' },
 ]
 
 const currentExams = computed(() => examInfos.filter((e) => e.language === selectedLang.value))

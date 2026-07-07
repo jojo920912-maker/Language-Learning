@@ -21,7 +21,7 @@ const defaultProgress = (lang: Language): UserProgress => ({
   lastActivity: new Date().toISOString(),
 })
 
-const ALL_LANGS: Language[] = ['en', 'ja', 'ko', 'fr', 'es', 'de', 'zh']
+const ALL_LANGS: Language[] = ['en', 'ja', 'ko', 'zh']
 
 function emptyProgressMap(): Record<Language, UserProgress> {
   return Object.fromEntries(ALL_LANGS.map((l) => [l, defaultProgress(l)])) as Record<

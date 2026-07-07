@@ -32,9 +32,6 @@ export const DECKS: Partial<Record<Language, DeckInfo[]>> = {
   ],
 }
 
-/** 尚未開放的語言 */
-export const COMING_SOON_LANGS: Language[] = ['fr', 'es', 'de']
-
 // 以 glob 懶載入各 deck 的 words.json，切換時才下載對應檔案
 const wordModules = import.meta.glob('./*/*/words.json', { import: 'default' }) as Record<
   string,
