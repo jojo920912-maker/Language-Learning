@@ -1,6 +1,11 @@
 <template>
   <div class="auth-page">
-    <div class="auth-card card">
+    <div v-if="userStore.isLoggedIn" class="auth-card card redirecting">
+      <div class="spinner-lg" />
+      <p class="redirect-text">已登入，正在為你進入…</p>
+    </div>
+
+    <div v-else class="auth-card card">
       <div class="auth-logo">
         <span>☕</span>
         <h1>Sip & Speak</h1>
@@ -74,7 +79,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, watch } from 'vue'
 import { RouterLink, useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 
@@ -82,12 +87,15 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 
-// 已登入者直接離開登入頁（例如從書籤或舊分頁開啟）
-onMounted(() => {
-  if (userStore.isLoggedIn) {
-    router.replace((route.query.redirect as string) || '/')
-  }
-})
+// 已登入者立即離開登入頁。用 watch + immediate 而非 onMounted，
+// 這樣即使 Firebase 稍後才還原登入狀態（重新整理／跨分頁登入）也會導頁。
+watch(
+  () => userStore.isLoggedIn,
+  (loggedIn) => {
+    if (loggedIn) router.replace((route.query.redirect as string) || '/')
+  },
+  { immediate: true },
+)
 
 const email = ref('')
 const password = ref('')
@@ -243,4 +251,8 @@ async function onSubmit() {
 
 .auth-deco { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
 .deco-item { position: absolute; animation: pulse 4s ease infinite; }
+
+.redirecting { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 60px 36px; }
+.spinner-lg { width: 40px; height: 40px; border: 3px solid var(--color-latte); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+.redirect-text { color: var(--text-muted); font-size: 0.9rem; }
 </style>
