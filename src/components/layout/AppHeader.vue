@@ -125,8 +125,9 @@ async function onLogout() {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: rgba(253, 246, 236, 0.92);
-  backdrop-filter: blur(12px);
+  /* 不用 backdrop-filter：它會讓 header 成為子層 position:fixed 元素的
+     containing block，導致手機版全螢幕選單被侷限在 header 內。改用近乎不透明的底色。 */
+  background: rgba(253, 246, 236, 0.98);
   border-bottom: 1px solid var(--border);
   box-shadow: 0 2px 12px rgba(74, 44, 23, 0.06);
 }
