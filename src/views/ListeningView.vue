@@ -23,6 +23,30 @@
       </div>
     </div>
 
+    <!-- Sentence shadowing practice -->
+    <div class="sentences-practice-section">
+      <div class="sp-header">
+        <h2 class="section-title" style="margin-bottom:4px">🗣️ 句子跟讀練習</h2>
+        <button class="btn btn-ghost" @click="reloadSentences">🔄 換一批</button>
+      </div>
+      <p class="section-subtitle">點播放聽 AI 朗讀，跟著唸；點「顯示翻譯」對照理解</p>
+
+      <div v-if="loadingSentences" class="sp-loading">句子載入中…</div>
+      <div v-else class="sentence-cards">
+        <div v-for="(s, i) in sentences" :key="i" class="sentence-card card">
+          <p class="sentence-text">{{ s.text }}</p>
+          <p v-if="revealed.has(i)" class="sentence-translation">{{ s.translation }}</p>
+          <div class="sentence-actions">
+            <button class="btn btn-primary sm" @click="speak(s.text, langStore.currentLanguage, spSpeed)">▶ 播放</button>
+            <div class="speed-mini">
+              <button v-for="sp in [0.7, 0.85, 1.0]" :key="sp" class="speed-chip" :class="{ active: spSpeed === sp }" @click="spSpeed = sp">{{ sp }}x</button>
+            </div>
+            <button class="btn btn-ghost sm" @click="toggleReveal(i)">{{ revealed.has(i) ? '隱藏翻譯' : '顯示翻譯' }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Listening exercises -->
     <div class="exercises-section">
       <h2 class="section-title" style="margin-bottom:20px">聽力練習題</h2>
@@ -113,16 +137,41 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useLanguageStore } from '@/stores/language'
 import { useTextToSpeech } from '@/composables/useTextToSpeech'
 import { listeningQuestions } from '@/data/quizzes'
+import { DECKS } from '@/data/decks'
+import { loadSentencePractice, type SentenceItem } from '@/data/sentencePractice'
 import QuizCard from '@/components/quiz/QuizCard.vue'
 import type { ListeningExercise } from '@/types'
 
 const langStore = useLanguageStore()
 const { speak, stop, isSpeaking } = useTextToSpeech()
 const currentConfig = computed(() => langStore.currentConfig)
+
+// 句子跟讀練習
+const sentences = ref<SentenceItem[]>([])
+const loadingSentences = ref(false)
+const revealed = ref(new Set<number>())
+const spSpeed = ref(0.85)
+
+async function reloadSentences() {
+  loadingSentences.value = true
+  revealed.value = new Set()
+  const deck = DECKS[langStore.currentLanguage]?.[0]
+  sentences.value = deck ? await loadSentencePractice(langStore.currentLanguage, deck.id, 12) : []
+  loadingSentences.value = false
+}
+
+function toggleReveal(i: number) {
+  const s = new Set(revealed.value)
+  if (s.has(i)) s.delete(i)
+  else s.add(i)
+  revealed.value = s
+}
+
+watch(() => langStore.currentLanguage, reloadSentences, { immediate: true })
 
 const playSpeed = ref(1.0)
 const playingId = ref<string | null>(null)
@@ -331,6 +380,19 @@ function openExercise(ex: ListeningExercise) {
 
 <style scoped>
 .listening-intro { padding: 24px; margin-bottom: 32px; }
+
+.sentences-practice-section { margin-bottom: 40px; }
+.sp-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.sp-loading { text-align: center; padding: 30px; color: var(--text-muted); }
+.sentence-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; margin-top: 16px; }
+.sentence-card { padding: 16px 18px; }
+.sentence-text { font-size: 1rem; color: var(--text-primary); line-height: 1.6; margin-bottom: 6px; }
+.sentence-translation { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 10px; padding: 8px 10px; background: var(--bg-secondary); border-radius: var(--radius-sm); }
+.sentence-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+.sentence-actions .sm { padding: 6px 14px; font-size: 0.82rem; }
+.speed-mini { display: flex; gap: 4px; }
+.speed-mini .speed-chip { padding: 3px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-card); font-size: 0.72rem; cursor: pointer; }
+.speed-mini .speed-chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .intro-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 20px; }
 .intro-item { text-align: center; }
 .intro-icon { font-size: 2rem; display: block; margin-bottom: 8px; }
