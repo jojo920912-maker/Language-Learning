@@ -70,8 +70,8 @@
         </ul>
       </div>
 
-      <button class="btn btn-primary start-practice-btn" @click="startPractice">
-        開始練習 🚀
+      <button class="btn btn-primary start-practice-btn" :disabled="loadingPractice" @click="startPractice">
+        {{ loadingPractice ? '出題中…' : '開始練習 🚀' }}
       </button>
     </div>
 
@@ -111,8 +111,29 @@ import { ref, computed } from 'vue'
 import { useLanguageStore } from '@/stores/language'
 import { LANGUAGES, EXAM_LABELS } from '@/data/languages'
 import { dailyQuizzes } from '@/data/quizzes'
+import { generateVocabQuiz } from '@/data/quizGenerator'
 import QuizCard from '@/components/quiz/QuizCard.vue'
-import type { Language, ExamType } from '@/types'
+import type { Language, ExamType, QuizQuestion } from '@/types'
+
+// 各檢定對應的單字庫 deck，用來生成該檢定的單字題
+const EXAM_DECK: Record<string, { lang: Language; deck: string }> = {
+  TOEIC: { lang: 'en', deck: 'toeic' },
+  TOEFL: { lang: 'en', deck: 'toeic' },
+  IELTS: { lang: 'en', deck: 'toeic' },
+  JLPT_N5: { lang: 'ja', deck: 'jlpt-n5' },
+  JLPT_N4: { lang: 'ja', deck: 'jlpt-n4' },
+  JLPT_N3: { lang: 'ja', deck: 'jlpt-n3' },
+  JLPT_N2: { lang: 'ja', deck: 'jlpt-n2' },
+  JLPT_N1: { lang: 'ja', deck: 'jlpt-n1' },
+  TOPIK_I: { lang: 'ko', deck: 'topik1' },
+  TOPIK_II: { lang: 'ko', deck: 'topik2' },
+  HSK1: { lang: 'zh', deck: 'hsk1' },
+  HSK2: { lang: 'zh', deck: 'hsk2' },
+  HSK3: { lang: 'zh', deck: 'hsk3' },
+  HSK4: { lang: 'zh', deck: 'hsk4' },
+  HSK5: { lang: 'zh', deck: 'hsk5' },
+  HSK6: { lang: 'zh', deck: 'hsk6' },
+}
 
 const langStore = useLanguageStore()
 const languages = LANGUAGES
@@ -197,15 +218,31 @@ function selectExam(exam: ExamType) {
   quizCompleted.value = false
 }
 
-function startPractice() {
-  let questions = dailyQuizzes.filter((q) => q.language === selectedLang.value)
-  if (selectedSkill.value !== 'all') questions = questions.filter((q) => q.skill === selectedSkill.value)
-  practiceQuestions.value = questions.length ? questions : dailyQuizzes.filter((q) => q.language === selectedLang.value).slice(0, 5)
+const loadingPractice = ref(false)
+
+async function startPractice() {
+  loadingPractice.value = true
+
+  // 人工精選題（該語言）
+  let curated = dailyQuizzes.filter((q) => q.language === selectedLang.value)
+  if (selectedSkill.value !== 'all') curated = curated.filter((q) => q.skill === selectedSkill.value)
+
+  // 依所選檢定，自動生成對應級數的單字題
+  let generated: QuizQuestion[] = []
+  const map = selectedExam.value ? EXAM_DECK[selectedExam.value] : null
+  if (map && (selectedSkill.value === 'all' || selectedSkill.value === 'vocabulary')) {
+    generated = await generateVocabQuiz(map.lang, map.deck, 10, 'intermediate', selectedExam.value ?? undefined)
+  }
+
+  const pool = [...generated, ...curated]
+  practiceQuestions.value = pool.length ? pool.slice(0, 10) : dailyQuizzes.filter((q) => q.language === selectedLang.value).slice(0, 5)
   if (!practiceQuestions.value.length) practiceQuestions.value = dailyQuizzes.slice(0, 5)
+
   currentIdx.value = 0
   correctCount.value = 0
   quizStarted.value = true
   quizCompleted.value = false
+  loadingPractice.value = false
 }
 
 function onAnswer(correct: boolean) { if (correct) correctCount.value++ }

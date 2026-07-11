@@ -55,8 +55,8 @@
           </div>
         </div>
 
-        <button class="btn btn-primary start-btn" @click="startQuiz">
-          開始測驗 🚀
+        <button class="btn btn-primary start-btn" :disabled="loadingQuiz" @click="startQuiz">
+          {{ loadingQuiz ? '出題中…' : '開始測驗 🚀' }}
         </button>
       </div>
     </div>
@@ -118,7 +118,10 @@ import { useLanguageStore } from '@/stores/language'
 import { useProgressStore } from '@/stores/progress'
 import { LANGUAGES } from '@/data/languages'
 import { dailyQuizzes } from '@/data/quizzes'
+import { DECKS } from '@/data/decks'
+import { generateVocabQuiz } from '@/data/quizGenerator'
 import QuizCard from '@/components/quiz/QuizCard.vue'
+import type { QuizQuestion } from '@/types'
 
 const langStore = useLanguageStore()
 const progressStore = useProgressStore()
@@ -132,7 +135,8 @@ const questionCount = ref(5)
 const selectedSkill = ref('all')
 const currentIndex = ref(0)
 const correctCount = ref(0)
-const quizQuestions = ref(dailyQuizzes)
+const quizQuestions = ref<QuizQuestion[]>(dailyQuizzes)
+const loadingQuiz = ref(false)
 
 const skillOptions = [
   { value: 'all', icon: '🌟', label: '全部' },
@@ -154,16 +158,43 @@ const scoreEmoji = computed(() => {
   return '📚'
 })
 
-function startQuiz() {
-  let questions = dailyQuizzes.filter((q) => q.language === langStore.currentLanguage)
-  if (selectedSkill.value !== 'all') questions = questions.filter((q) => q.skill === selectedSkill.value)
-  if (questions.length === 0) questions = dailyQuizzes.filter((q) => q.language === langStore.currentLanguage)
-  quizQuestions.value = questions.slice(0, questionCount.value)
-  if (quizQuestions.value.length === 0) quizQuestions.value = dailyQuizzes.slice(0, questionCount.value)
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j]!, a[i]!]
+  }
+  return a
+}
+
+async function startQuiz() {
+  loadingQuiz.value = true
+  const lang = langStore.currentLanguage
+
+  // 精選題（人工撰寫，含閱讀/聽力/文法）
+  let curated = dailyQuizzes.filter((q) => q.language === lang)
+  if (selectedSkill.value !== 'all') curated = curated.filter((q) => q.skill === selectedSkill.value)
+
+  // 從單字庫自動生成單字題（全部或選「單字」時）
+  let generated: QuizQuestion[] = []
+  if (selectedSkill.value === 'all' || selectedSkill.value === 'vocabulary') {
+    const deck = DECKS[lang]?.[0]
+    if (deck) {
+      generated = await generateVocabQuiz(lang, deck.id, questionCount.value * 2, deck.difficulty)
+    }
+  }
+
+  const pool = shuffle([...generated, ...curated])
+  quizQuestions.value = pool.slice(0, questionCount.value)
+  if (quizQuestions.value.length === 0) {
+    quizQuestions.value = dailyQuizzes.filter((q) => q.language === lang).slice(0, questionCount.value)
+  }
+
   currentIndex.value = 0
   correctCount.value = 0
   quizStarted.value = true
   quizCompleted.value = false
+  loadingQuiz.value = false
 }
 
 function onAnswer(correct: boolean) {
