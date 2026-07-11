@@ -1,7 +1,15 @@
 <template>
   <div class="container page-content">
-    <h1 class="section-title">✍️ 寫作練習</h1>
-    <p class="section-subtitle">{{ currentConfig.flag }} {{ currentConfig.name }} · 針對考試題型進行寫作訓練</p>
+    <div class="page-head-row">
+      <div>
+        <h1 class="section-title">✍️ 寫作練習</h1>
+        <p class="section-subtitle">{{ currentConfig.flag }} {{ currentConfig.name }} · 針對考試題型進行寫作訓練</p>
+      </div>
+      <button class="btn btn-primary ai-btn" :disabled="ai.loading.value" @click="genAiPrompt">
+        {{ ai.loading.value ? '生成中…' : '✨ AI 依程度出題' }}
+      </button>
+    </div>
+    <p v-if="ai.error.value" class="ai-error">⚠️ {{ ai.error.value }} <RouterLink to="/profile">前往設定金鑰</RouterLink></p>
 
     <div class="prompts-grid">
       <div v-for="prompt in currentPrompts" :key="prompt.id" class="prompt-card card">
@@ -47,9 +55,44 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useLanguageStore } from '@/stores/language'
+import { useProgressStore } from '@/stores/progress'
 import { useTextToSpeech } from '@/composables/useTextToSpeech'
-import type { WritingPrompt } from '@/types'
+import { useAI, hasApiKey } from '@/composables/useAI'
+import { writingPrompts } from '@/data/writingPrompts'
+import type { WritingPrompt, DifficultyLevel } from '@/types'
+
+const progressStore = useProgressStore()
+const ai = useAI()
+
+function levelToDifficulty(pct: number): DifficultyLevel {
+  if (pct < 34) return 'beginner'
+  if (pct < 67) return 'intermediate'
+  return 'advanced'
+}
+
+const aiPrompts = ref<WritingPrompt[]>([])
+
+async function genAiPrompt() {
+  if (!hasApiKey()) {
+    ai.error.value = '尚未設定 Gemini API 金鑰'
+    return
+  }
+  const lang = langStore.currentLanguage
+  const diff = levelToDifficulty(progressStore.getProgress(lang).skillLevels.writing)
+  try {
+    const r = await ai.generateWritingPrompt(lang, diff)
+    aiPrompts.value.unshift({
+      id: `ai-wp-${Date.now()}`,
+      topic: r.topic,
+      description: r.description,
+      language: lang,
+      difficulty: diff,
+      wordLimit: diff === 'beginner' ? 200 : diff === 'intermediate' ? 300 : 400,
+    })
+  } catch { /* error shown via ai.error */ }
+}
 
 const langStore = useLanguageStore()
 const { speak } = useTextToSpeech()
@@ -61,18 +104,10 @@ const showSample = ref(false)
 
 const wordCount = computed(() => userText.value.trim().split(/\s+/).filter(Boolean).length)
 
-const prompts: WritingPrompt[] = [
-  { id: 'wp-en-001', topic: 'Technology in Education', description: 'Discuss the advantages and disadvantages of using technology in modern education. Include specific examples.', language: 'en', difficulty: 'intermediate', wordLimit: 250, examType: 'TOEFL', sampleAnswer: 'Technology has revolutionized education in countless ways. Interactive whiteboards, online resources, and learning management systems have made education more accessible and engaging. However, over-reliance on technology can lead to shorter attention spans and reduced critical thinking. The key is finding balance — using technology as a tool to enhance learning, not replace traditional teaching methods. Schools that integrate technology thoughtfully tend to produce more engaged and independent learners.' },
-  { id: 'wp-en-002', topic: 'Work-Life Balance', description: 'Some people believe that work should always come first, while others prioritize personal life. Discuss both views and give your own opinion.', language: 'en', difficulty: 'advanced', wordLimit: 300, examType: 'IELTS' },
-  { id: 'wp-ja-001', topic: '環境問題について', description: '現代社会における環境問題について、原因と解決策を含めて論じてください。', language: 'ja', difficulty: 'intermediate', wordLimit: 400, examType: 'JLPT_N2', sampleAnswer: '現代社会では、地球温暖化や海洋汚染など様々な環境問題が深刻化しています。その主な原因は、工業化による温室効果ガスの排出と、プラスチック製品の過剰使用です。解決のためには、再生可能エネルギーの普及と、個人レベルでの消費行動の見直しが必要です。政府、企業、個人が協力して取り組むことで、持続可能な社会を実現できると考えます。' },
-  { id: 'wp-ko-001', topic: '소셜 미디어의 영향', description: '소셜 미디어가 현대 사회에 미치는 긍정적, 부정적 영향에 대해 써 보세요.', language: 'ko', difficulty: 'intermediate', wordLimit: 300, examType: 'TOPIK_II' },
-  { id: 'wp-ja-002', topic: '私の好きな場所', description: 'あなたの好きな場所について、その理由とともに紹介してください。', language: 'ja', difficulty: 'beginner', wordLimit: 200, examType: 'JLPT_N4', sampleAnswer: '私の好きな場所は家の近くの公園です。この公園には大きな桜の木があって、春になるととてもきれいです。私は週末によくここで散歩をしたり、本を読んだりします。静かで空気もきれいなので、勉強で疲れたときにここに来ると、元気になります。それから、公園で近所の人と話すのも楽しみの一つです。' },
-  { id: 'wp-ko-002', topic: '나의 취미', description: '자신의 취미를 소개하고, 그 취미를 좋아하는 이유를 써 보세요.', language: 'ko', difficulty: 'beginner', wordLimit: 200, examType: 'TOPIK_I', sampleAnswer: '제 취미는 요리입니다. 주말마다 새로운 음식을 만들어 봅니다. 요리를 하면 스트레스가 풀리고 기분이 좋아집니다. 그리고 제가 만든 음식을 가족과 친구들이 맛있게 먹을 때 정말 행복합니다. 요즘은 한국 음식뿐만 아니라 외국 음식도 배우고 있습니다. 다음 달에는 요리 수업에도 다닐 계획입니다.' },
-  { id: 'wp-zh-001', topic: '我的學習方法', description: '請介紹你學習外語的方法，並說明這些方法為什麼有效。', language: 'zh', difficulty: 'intermediate', wordLimit: 300, examType: 'HSK4', sampleAnswer: '學習外語最重要的是每天堅持練習。我每天早上背二十個生詞，晚上聽三十分鐘的廣播。我還喜歡看外語電影，一邊看一邊學習日常會話。遇到不懂的詞，我會馬上查詞典並記在筆記本上。此外，我每週和語言交換夥伴聊天兩次，練習口語。我認為語言是工具，只有多用才能真正掌握。' },
-  { id: 'wp-zh-002', topic: '網路購物的利與弊', description: '網路購物越來越普及，請談談它的優點和缺點，並提出你的看法。', language: 'zh', difficulty: 'advanced', wordLimit: 400, examType: 'HSK5' },
-]
-
-const currentPrompts = computed(() => prompts.filter((p) => p.language === langStore.currentLanguage))
+const currentPrompts = computed(() => [
+  ...aiPrompts.value.filter((p) => p.language === langStore.currentLanguage),
+  ...writingPrompts.filter((p) => p.language === langStore.currentLanguage),
+])
 
 function diffLabel(d: string) {
   return { beginner: '初級', intermediate: '中級', advanced: '高級' }[d] ?? d
@@ -96,6 +131,10 @@ function readUserText() {
 </script>
 
 <style scoped>
+.page-head-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
+.ai-btn { flex-shrink: 0; }
+.ai-error { font-size: 0.85rem; color: #c62828; margin-bottom: 16px; }
+.ai-error a { color: var(--accent); font-weight: 700; }
 .prompts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
 .prompt-card { padding: 20px; }
 .prompt-header { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }

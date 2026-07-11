@@ -53,6 +53,15 @@
               </button>
             </div>
           </div>
+
+          <div class="option-group">
+            <label class="option-label">出題來源</label>
+            <div class="option-chips">
+              <button class="chip" :class="{ active: !useAiQuiz }" @click="useAiQuiz = false">📚 單字庫（免費）</button>
+              <button class="chip" :class="{ active: useAiQuiz }" @click="useAiQuiz = true">✨ AI 依程度出題</button>
+            </div>
+            <p v-if="useAiQuiz" class="ai-hint">需先在<RouterLink to="/profile">個人資料</RouterLink>設定 Gemini 金鑰</p>
+          </div>
         </div>
 
         <button class="btn btn-primary start-btn" :disabled="loadingQuiz" @click="startQuiz">
@@ -120,8 +129,18 @@ import { LANGUAGES } from '@/data/languages'
 import { dailyQuizzes } from '@/data/quizzes'
 import { DECKS } from '@/data/decks'
 import { generateVocabQuiz } from '@/data/quizGenerator'
+import { useAI, hasApiKey } from '@/composables/useAI'
 import QuizCard from '@/components/quiz/QuizCard.vue'
-import type { QuizQuestion } from '@/types'
+import type { QuizQuestion, DifficultyLevel } from '@/types'
+
+const ai = useAI()
+const useAiQuiz = ref(false)
+
+function levelToDifficulty(pct: number): DifficultyLevel {
+  if (pct < 34) return 'beginner'
+  if (pct < 67) return 'intermediate'
+  return 'advanced'
+}
 
 const langStore = useLanguageStore()
 const progressStore = useProgressStore()
@@ -170,6 +189,32 @@ function shuffle<T>(arr: T[]): T[] {
 async function startQuiz() {
   loadingQuiz.value = true
   const lang = langStore.currentLanguage
+
+  // AI 依程度出題
+  if (useAiQuiz.value) {
+    if (!hasApiKey()) {
+      ai.error.value = '尚未設定金鑰'
+      loadingQuiz.value = false
+      alert('請先到個人資料頁設定 Gemini API 金鑰')
+      return
+    }
+    try {
+      const diff = levelToDifficulty(progressStore.getProgress(lang).skillLevels.vocabulary)
+      const aiQs = await ai.generateQuiz(lang, diff, questionCount.value)
+      if (aiQs.length) {
+        quizQuestions.value = aiQs
+        currentIndex.value = 0
+        correctCount.value = 0
+        quizStarted.value = true
+        quizCompleted.value = false
+        loadingQuiz.value = false
+        return
+      }
+    } catch {
+      loadingQuiz.value = false
+      alert('AI 出題失敗，改用單字庫出題')
+    }
+  }
 
   // 精選題（人工撰寫，含閱讀/聽力/文法）
   let curated = dailyQuizzes.filter((q) => q.language === lang)
@@ -244,6 +289,8 @@ function restartQuiz() {
 .chip:hover { border-color: var(--accent); color: var(--accent); }
 .chip.active { border-color: var(--accent); background: rgba(200, 151, 58, 0.12); color: var(--accent); }
 
+.ai-hint { font-size: 0.78rem; color: var(--text-muted); }
+.ai-hint a { color: var(--accent); font-weight: 700; }
 .start-btn { width: 100%; max-width: 300px; justify-content: center; padding: 14px; font-size: 1rem; }
 
 .quiz-container { max-width: 680px; margin: 0 auto; }

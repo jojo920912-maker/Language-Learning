@@ -109,6 +109,25 @@
         </form>
       </div>
 
+      <!-- AI 設定 -->
+      <div class="profile-section card">
+        <h2 class="card-title">✨ AI 出題設定（Gemini）</h2>
+        <p class="ai-desc">
+          填入免費的 Google Gemini API 金鑰後，閱讀／聽力／寫作／測驗就能依你的程度用 AI 無限出題。
+          金鑰只存在你的瀏覽器，不會上傳。
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener">前往免費申請金鑰 ↗</a>
+        </p>
+        <div class="form-group">
+          <label class="form-label">Gemini API Key</label>
+          <input v-model="geminiKey" type="password" class="form-input" placeholder="貼上你的 API 金鑰" />
+        </div>
+        <div v-if="aiKeySaved" class="alert-success">✓ 已儲存，AI 出題已啟用</div>
+        <div class="ai-actions">
+          <button class="btn btn-primary save-btn" @click="saveGeminiKey">儲存金鑰</button>
+          <button v-if="hasKey" class="btn btn-ghost" @click="clearGeminiKey">清除</button>
+        </div>
+      </div>
+
       <!-- Achievements -->
       <div class="profile-section card">
         <h2 class="card-title">🏆 成就徽章</h2>
@@ -129,6 +148,7 @@
 import { ref, computed, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { setApiKey, hasApiKey } from '@/composables/useAI'
 import { useProgressStore } from '@/stores/progress'
 import { LANGUAGES } from '@/data/languages'
 import type { Language } from '@/types'
@@ -218,6 +238,24 @@ async function onLogout() {
   router.push('/login')
 }
 
+// AI 金鑰
+const geminiKey = ref('')
+const aiKeySaved = ref(false)
+const hasKey = ref(hasApiKey())
+
+function saveGeminiKey() {
+  setApiKey(geminiKey.value)
+  hasKey.value = hasApiKey()
+  aiKeySaved.value = true
+  geminiKey.value = ''
+  setTimeout(() => { aiKeySaved.value = false }, 2500)
+}
+
+function clearGeminiKey() {
+  setApiKey('')
+  hasKey.value = false
+}
+
 const achievementBadges = computed(() => {
   const totalPts = progressStore.totalPointsAll
   const totalQuizzes = Object.values(progressStore.progressMap).reduce((s, p) => s + p.completedQuizzes, 0)
@@ -288,6 +326,10 @@ const achievementBadges = computed(() => {
 .badge-emoji { font-size: 1.8rem; }
 .badge-name { font-size: 0.78rem; font-weight: 700; color: var(--text-primary); }
 .badge-desc { font-size: 0.7rem; color: var(--text-muted); line-height: 1.3; }
+
+.ai-desc { font-size: 0.83rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 16px; }
+.ai-desc a { color: var(--accent); font-weight: 700; }
+.ai-actions { display: flex; gap: 10px; }
 
 @media (max-width: 600px) {
   .profile-grid { grid-template-columns: 1fr; }

@@ -5,10 +5,16 @@
         <h1 class="section-title">📰 閱讀練習</h1>
         <p class="section-subtitle">搭配 {{ currentConfig.newsSource.name }} 等時事媒體，提升閱讀理解</p>
       </div>
-      <a :href="currentConfig.newsSource.url" target="_blank" rel="noopener" class="btn btn-ghost news-link">
-        前往 {{ currentConfig.newsSource.name }} {{ currentConfig.newsSource.logo }}
-      </a>
+      <div class="head-actions">
+        <button class="btn btn-primary ai-btn" :disabled="ai.loading.value" @click="genAiArticle">
+          {{ ai.loading.value ? '生成中…' : '✨ AI 依程度生成' }}
+        </button>
+        <a :href="currentConfig.newsSource.url" target="_blank" rel="noopener" class="btn btn-ghost news-link">
+          {{ currentConfig.newsSource.name }} {{ currentConfig.newsSource.logo }}
+        </a>
+      </div>
     </div>
+    <p v-if="ai.error.value" class="ai-error">⚠️ {{ ai.error.value }} <RouterLink to="/profile">前往設定金鑰</RouterLink></p>
 
     <div class="article-filters">
       <button
@@ -103,14 +109,19 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useLanguageStore } from '@/stores/language'
+import { useProgressStore } from '@/stores/progress'
 import { useTextToSpeech } from '@/composables/useTextToSpeech'
+import { useAI, hasApiKey } from '@/composables/useAI'
 import { articles } from '@/data/articles'
 import { LANGUAGES } from '@/data/languages'
 import QuizCard from '@/components/quiz/QuizCard.vue'
-import type { Article } from '@/types'
+import type { Article, DifficultyLevel, QuizQuestion } from '@/types'
 
 const langStore = useLanguageStore()
+const progressStore = useProgressStore()
+const ai = useAI()
 const { speak, stop, isSpeaking } = useTextToSpeech()
 const currentConfig = computed(() => langStore.currentConfig)
 
@@ -118,6 +129,36 @@ const selectedArticle = ref<Article | null>(null)
 const activeTag = ref('')
 const currentQuestionIdx = ref(0)
 const articleScore = ref(0)
+const aiArticles = ref<Article[]>([])
+
+function levelToDifficulty(pct: number): DifficultyLevel {
+  if (pct < 34) return 'beginner'
+  if (pct < 67) return 'intermediate'
+  return 'advanced'
+}
+
+async function genAiArticle() {
+  if (!hasApiKey()) { ai.error.value = '尚未設定 Gemini API 金鑰'; return }
+  const lang = langStore.currentLanguage
+  const diff = levelToDifficulty(progressStore.getProgress(lang).skillLevels.reading)
+  try {
+    const r = await ai.generateReading(lang, diff)
+    const id = `ai-art-${Date.now()}`
+    const questions: QuizQuestion[] = r.questions.map((q, i) => ({
+      id: `${id}-q${i}`, type: 'multiple-choice', skill: 'reading', language: lang,
+      question: q.question, options: q.options, correctAnswer: q.correctAnswer,
+      explanation: q.explanation, difficulty: diff,
+    }))
+    const article: Article = {
+      id, title: r.title, content: r.content, summary: r.summary,
+      source: 'AI 生成', sourceUrl: '#', language: lang, publishedAt: new Date().toISOString().slice(0, 10),
+      difficulty: diff, readingTime: Math.max(1, Math.round(r.content.length / 400)),
+      tags: ['AI', 'AI 生成'], questions,
+    }
+    aiArticles.value.unshift(article)
+    openArticle(article)
+  } catch { /* ai.error shown */ }
+}
 
 const filterTags = computed(() => {
   const tags = new Set<string>([''])
@@ -126,7 +167,7 @@ const filterTags = computed(() => {
 })
 
 const filteredByLang = computed(() =>
-  articles.filter((a) => a.language === langStore.currentLanguage),
+  [...aiArticles.value, ...articles].filter((a) => a.language === langStore.currentLanguage),
 )
 
 const filteredArticles = computed(() => {
@@ -176,6 +217,10 @@ function nextArticleQuestion() {
 
 <style scoped>
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.ai-btn { flex-shrink: 0; }
+.ai-error { font-size: 0.85rem; color: #c62828; margin: -8px 0 16px; }
+.ai-error a { color: var(--accent); font-weight: 700; }
 .news-link { font-size: 0.85rem; }
 
 .article-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; }
