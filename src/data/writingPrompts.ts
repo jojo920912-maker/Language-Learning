@@ -1,4 +1,48 @@
-import type { WritingPrompt } from '@/types'
+import type { WritingPrompt, Language, DifficultyLevel } from '@/types'
+
+// ─── 程式化生成的寫作題庫：主題 × 語言 × 三種難度模板 ───
+const TOPICS: Record<Language, string[]> = {
+  en: ['My Daily Routine', 'A Person I Admire', 'My Favorite Season', 'Online Learning', 'City Life vs. Country Life', 'The Book That Changed Me', 'Social Media Habits', 'A Skill I Want to Learn', 'My Dream Job', 'Public Transportation', 'Eating Habits', 'The Role of Museums'],
+  ja: ['私の一日', '尊敬する人', '好きな季節', 'オンライン学習', '都会と田舎の生活', '印象に残った本', 'SNSとの付き合い方', '身につけたいスキル', '将来の夢', '公共交通機関', '食生活について', '博物館の役割'],
+  ko: ['나의 하루', '존경하는 사람', '좋아하는 계절', '온라인 학습', '도시와 시골 생활', '인상 깊은 책', 'SNS 사용 습관', '배우고 싶은 기술', '장래 희망', '대중교통', '식습관', '박물관의 역할'],
+  zh: ['我的一天', '我尊敬的人', '我最喜歡的季節', '線上學習', '城市與鄉村生活', '影響我的一本書', '社群媒體使用習慣', '我想學的技能', '我的理想工作', '大眾運輸', '飲食習慣', '博物館的角色'],
+}
+
+const LEVEL_TEMPLATE: Record<DifficultyLevel, { suffix: Record<Language, string>; wordLimit: number }> = {
+  beginner: {
+    wordLimit: 200,
+    suffix: { en: 'Describe it simply with 2-3 examples from your life.', ja: 'あなたの生活の例を2〜3つ挙げて、簡単に説明してください。', ko: '자신의 생활에서 예를 2-3개 들어 간단히 써 보세요.', zh: '請用生活中的兩三個例子簡單描述。' },
+  },
+  intermediate: {
+    wordLimit: 300,
+    suffix: { en: 'Explain the reasons behind your view and compare it with an opposing view.', ja: 'あなたの考えの理由を説明し、反対の見方とも比較してください。', ko: '자신의 생각의 이유를 설명하고 반대 의견과 비교해 보세요.', zh: '請說明你的理由，並與相反的觀點做比較。' },
+  },
+  advanced: {
+    wordLimit: 400,
+    suffix: { en: 'Analyze its social impact, discuss trade-offs, and propose a conclusion.', ja: '社会への影響を分析し、利点と欠点を論じた上で結論を述べてください。', ko: '사회적 영향을 분석하고 장단점을 논한 후 결론을 제시하세요.', zh: '請分析其社會影響、討論利弊，並提出你的結論。' },
+  },
+}
+
+/** 生成 12 主題 × 4 語言 × 3 難度 = 144 題寫作題庫 */
+export function generatedWritingPrompts(): WritingPrompt[] {
+  const out: WritingPrompt[] = []
+  for (const lang of Object.keys(TOPICS) as Language[]) {
+    TOPICS[lang].forEach((topic, ti) => {
+      for (const level of ['beginner', 'intermediate', 'advanced'] as DifficultyLevel[]) {
+        const t = LEVEL_TEMPLATE[level]
+        out.push({
+          id: `gwp-${lang}-${ti}-${level}`,
+          topic,
+          description: t.suffix[lang],
+          language: lang,
+          difficulty: level,
+          wordLimit: t.wordLimit,
+        })
+      }
+    })
+  }
+  return out
+}
 
 export const writingPrompts: WritingPrompt[] = [
   // ─── English (7) ───

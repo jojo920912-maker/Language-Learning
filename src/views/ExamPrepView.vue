@@ -80,6 +80,10 @@
       <div class="quiz-progress-bar">
         <div class="quiz-progress-fill" :style="{ width: (currentIdx / practiceQuestions.length * 100) + '%' }" />
       </div>
+      <div class="exam-batch-bar">
+        <span>難度{{ examDiffZh }} · 已答 {{ answeredCount }} / {{ practiceQuestions.length }}</span>
+        <button class="btn btn-ghost finish-early-btn" @click="finishExam">提前結算</button>
+      </div>
       <div class="quiz-wrapper">
         <QuizCard
           v-if="practiceQuestions[currentIdx] != null"
@@ -97,7 +101,7 @@
     <div v-else-if="quizCompleted" class="result-panel card">
       <div class="result-emoji">{{ scoreEmoji }}</div>
       <h2>{{ EXAM_LABELS[selectedExam!] }} 練習結果</h2>
-      <p class="result-score">{{ correctCount }} / {{ practiceQuestions.length }} · {{ scorePct }}%</p>
+      <p class="result-score">{{ correctCount }} / {{ answeredCount }} · {{ scorePct }}%</p>
       <div class="result-actions">
         <button class="btn btn-primary" @click="restartPractice">再練一次</button>
         <button class="btn btn-ghost" @click="quizCompleted = false; quizStarted = false">返回題型選擇</button>
@@ -112,6 +116,8 @@ import { useLanguageStore } from '@/stores/language'
 import { LANGUAGES, EXAM_LABELS } from '@/data/languages'
 import { dailyQuizzes } from '@/data/quizzes'
 import { generateVocabQuiz } from '@/data/quizGenerator'
+import { batchSizeFor, levelFromSkill } from '@/data/questionBank'
+import { useProgressStore } from '@/stores/progress'
 import QuizCard from '@/components/quiz/QuizCard.vue'
 import type { Language, ExamType, QuizQuestion } from '@/types'
 
@@ -136,7 +142,11 @@ const EXAM_DECK: Record<string, { lang: Language; deck: string }> = {
 }
 
 const langStore = useLanguageStore()
+const progressStore = useProgressStore()
 const languages = LANGUAGES
+const answeredCount = ref(0)
+const examBatchDiff = ref<'beginner' | 'intermediate' | 'advanced'>('beginner')
+const examDiffZh = computed(() => ({ beginner: '初級', intermediate: '中級', advanced: '高級' }[examBatchDiff.value]))
 
 const selectedLang = ref<Language>(langStore.currentLanguage)
 const selectedExam = ref<ExamType | null>(null)
@@ -196,7 +206,7 @@ const examStrategies: Partial<Record<ExamType, string[]>> = {
 
 const examStrategy = computed(() => selectedExam.value ? examStrategies[selectedExam.value] : null)
 
-const scorePct = computed(() => Math.round((correctCount.value / practiceQuestions.value.length) * 100))
+const scorePct = computed(() => (answeredCount.value ? Math.round((correctCount.value / answeredCount.value) * 100) : 0))
 const scoreEmoji = computed(() => {
   if (scorePct.value >= 90) return '🏆'
   if (scorePct.value >= 70) return '🎉'
@@ -227,34 +237,46 @@ async function startPractice() {
   let curated = dailyQuizzes.filter((q) => q.language === selectedLang.value)
   if (selectedSkill.value !== 'all') curated = curated.filter((q) => q.skill === selectedSkill.value)
 
-  // 依所選檢定，自動生成對應級數的單字題
+  // 依所選檢定，自動生成對應級數的單字題；題量依使用者程度（初級 250／中級 500／高級 1000）
   let generated: QuizQuestion[] = []
   const map = selectedExam.value ? EXAM_DECK[selectedExam.value] : null
+  const userDiff = levelFromSkill(progressStore.getProgress(selectedLang.value).skillLevels.vocabulary)
+  examBatchDiff.value = userDiff
   if (map && (selectedSkill.value === 'all' || selectedSkill.value === 'vocabulary')) {
-    generated = await generateVocabQuiz(map.lang, map.deck, 10, 'intermediate', selectedExam.value ?? undefined)
+    generated = await generateVocabQuiz(map.lang, map.deck, batchSizeFor(userDiff), userDiff, selectedExam.value ?? undefined)
   }
 
   const pool = [...generated, ...curated]
-  practiceQuestions.value = pool.length ? pool.slice(0, 10) : dailyQuizzes.filter((q) => q.language === selectedLang.value).slice(0, 5)
+  practiceQuestions.value = pool.length ? pool : dailyQuizzes.filter((q) => q.language === selectedLang.value).slice(0, 5)
   if (!practiceQuestions.value.length) practiceQuestions.value = dailyQuizzes.slice(0, 5)
 
   currentIdx.value = 0
   correctCount.value = 0
+  answeredCount.value = 0
   quizStarted.value = true
   quizCompleted.value = false
   loadingPractice.value = false
 }
 
-function onAnswer(correct: boolean) { if (correct) correctCount.value++ }
+function onAnswer(correct: boolean) {
+  answeredCount.value++
+  if (correct) correctCount.value++
+}
+
+function finishExam() {
+  quizCompleted.value = true
+  progressStore.recordQuizComplete(selectedLang.value, correctCount.value, Math.max(1, answeredCount.value), 'vocabulary')
+}
 
 function nextQ() {
   if (currentIdx.value < practiceQuestions.value.length - 1) currentIdx.value++
-  else quizCompleted.value = true
+  else finishExam()
 }
 
 function restartPractice() {
   currentIdx.value = 0
   correctCount.value = 0
+  answeredCount.value = 0
   quizCompleted.value = false
   quizStarted.value = false
 }
@@ -291,6 +313,8 @@ function restartPractice() {
 .start-practice-btn { width: 100%; max-width: 300px; justify-content: center; padding: 14px; font-size: 1rem; }
 
 .quiz-section { max-width: 680px; }
+.exam-batch-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); flex-wrap: wrap; }
+.finish-early-btn { font-size: 0.8rem; padding: 5px 12px; }
 .quiz-progress-bar { height: 4px; background: var(--color-latte); border-radius: 2px; margin-bottom: 24px; overflow: hidden; }
 .quiz-progress-fill { height: 100%; background: linear-gradient(90deg, var(--accent), var(--color-cinnamon)); transition: width 0.5s; }
 

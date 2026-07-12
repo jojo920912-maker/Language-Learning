@@ -16,6 +16,13 @@
     </div>
     <p v-if="ai.error.value" class="ai-error">⚠️ {{ ai.error.value }} <RouterLink to="/profile">前往設定金鑰</RouterLink></p>
 
+    <!-- 依程度題庫練習（不需金鑰、離線可用） -->
+    <BankPractice
+      title="📖 閱讀理解題庫（依程度自動出題）"
+      :kinds="readingKinds"
+      skill="reading"
+    />
+
     <div class="article-filters">
       <button
         v-for="tag in filterTags"
@@ -117,7 +124,12 @@ import { useAI, hasApiKey } from '@/composables/useAI'
 import { articles } from '@/data/articles'
 import { LANGUAGES } from '@/data/languages'
 import QuizCard from '@/components/quiz/QuizCard.vue'
+import BankPractice from '@/components/quiz/BankPractice.vue'
+import type { BankKind } from '@/data/questionBank'
 import type { Article, DifficultyLevel, QuizQuestion } from '@/types'
+
+// en 有例句可出「句子閱讀理解」；其他語言用詞義/反向題型練閱讀理解
+const readingKinds: BankKind[] = ['sentence-read', 'meaning', 'reverse']
 
 const langStore = useLanguageStore()
 const progressStore = useProgressStore()

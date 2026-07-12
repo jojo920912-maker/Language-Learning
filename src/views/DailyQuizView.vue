@@ -57,10 +57,15 @@
           <div class="option-group">
             <label class="option-label">出題來源</label>
             <div class="option-chips">
-              <button class="chip" :class="{ active: !useAiQuiz }" @click="useAiQuiz = false">📚 單字庫（免費）</button>
-              <button class="chip" :class="{ active: useAiQuiz }" @click="useAiQuiz = true">✨ AI 依程度出題</button>
+              <button class="chip" :class="{ active: quizSource === 'deck' }" @click="quizSource = 'deck'">📚 單字庫（免費）</button>
+              <button class="chip" :class="{ active: quizSource === 'marathon' }" @click="quizSource = 'marathon'">🏃 題庫馬拉松（依程度）</button>
+              <button class="chip" :class="{ active: quizSource === 'ai' }" @click="quizSource = 'ai'">✨ AI 依程度出題</button>
             </div>
-            <p v-if="useAiQuiz" class="ai-hint">需先在<RouterLink to="/profile">個人資料</RouterLink>設定 Gemini 金鑰</p>
+            <p v-if="quizSource === 'ai'" class="ai-hint">需先在<RouterLink to="/profile">個人資料</RouterLink>設定 Gemini 金鑰</p>
+            <p v-if="quizSource === 'marathon'" class="ai-hint">
+              依你的程度出一大批混合題型（初級 250、中級 500、高級 1000 題），隨時可提前結算。
+              <span v-if="bankCount !== null">本語言題庫共 {{ bankCount.toLocaleString() }} 題。</span>
+            </p>
           </div>
         </div>
 
@@ -74,6 +79,10 @@
     <div v-else-if="quizStarted && !quizCompleted" class="quiz-container">
       <div class="quiz-progress-bar">
         <div class="quiz-progress-fill" :style="{ width: progressPct + '%' }" />
+      </div>
+      <div v-if="quizSource === 'marathon'" class="marathon-bar">
+        <span>🏃 馬拉松 · 難度{{ diffLabelZh }} · 已答 {{ answeredCount }} / {{ quizQuestions.length }}</span>
+        <button class="btn btn-ghost finish-early-btn" @click="finishQuiz">提前結算</button>
       </div>
 
       <QuizCard
@@ -92,18 +101,18 @@
       <div class="result-header">
         <div class="result-emoji">{{ scoreEmoji }}</div>
         <h2 class="result-title">測驗完成！</h2>
-        <p class="result-score">{{ correctCount }} / {{ quizQuestions.length }} 題答對</p>
+        <p class="result-score">{{ correctCount }} / {{ answeredCount }} 題答對</p>
         <div class="result-pct">{{ scorePct }}%</div>
       </div>
 
       <div class="result-breakdown">
-        <div class="breakdown-item" :class="correctCount > quizQuestions.length / 2 ? 'good' : 'retry'">
+        <div class="breakdown-item" :class="correctCount > answeredCount / 2 ? 'good' : 'retry'">
           <span>✓ 答對</span>
           <span>{{ correctCount }} 題</span>
         </div>
         <div class="breakdown-item retry">
           <span>✗ 答錯</span>
-          <span>{{ quizQuestions.length - correctCount }} 題</span>
+          <span>{{ answeredCount - correctCount }} 題</span>
         </div>
         <div class="breakdown-item">
           <span>⭐ 獲得點數</span>
@@ -121,7 +130,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useLanguageStore } from '@/stores/language'
 import { useProgressStore } from '@/stores/progress'
@@ -129,21 +138,31 @@ import { LANGUAGES } from '@/data/languages'
 import { dailyQuizzes } from '@/data/quizzes'
 import { DECKS } from '@/data/decks'
 import { generateVocabQuiz } from '@/data/quizGenerator'
+import { generateBatch, bankTotal, batchSizeFor, levelFromSkill } from '@/data/questionBank'
 import { useAI, hasApiKey } from '@/composables/useAI'
 import QuizCard from '@/components/quiz/QuizCard.vue'
 import type { QuizQuestion, DifficultyLevel } from '@/types'
 
 const ai = useAI()
-const useAiQuiz = ref(false)
+const quizSource = ref<'deck' | 'marathon' | 'ai'>('deck')
 
-function levelToDifficulty(pct: number): DifficultyLevel {
-  if (pct < 34) return 'beginner'
-  if (pct < 67) return 'intermediate'
-  return 'advanced'
-}
+const levelToDifficulty = levelFromSkill
 
 const langStore = useLanguageStore()
 const progressStore = useProgressStore()
+
+// 題庫總量（選馬拉松時才載入，按語言快取）
+const bankCount = ref<number | null>(null)
+const bankCache = new Map<string, number>()
+watch([quizSource, () => langStore.currentLanguage], async ([src]) => {
+  if (src !== 'marathon') return
+  const lang = langStore.currentLanguage
+  if (bankCache.has(lang)) { bankCount.value = bankCache.get(lang)!; return }
+  bankCount.value = null
+  const n = await bankTotal(lang)
+  bankCache.set(lang, n)
+  bankCount.value = n
+})
 
 const currentConfig = computed(() => langStore.currentConfig)
 const languages = LANGUAGES
@@ -154,8 +173,11 @@ const questionCount = ref(5)
 const selectedSkill = ref('all')
 const currentIndex = ref(0)
 const correctCount = ref(0)
+const answeredCount = ref(0)
 const quizQuestions = ref<QuizQuestion[]>(dailyQuizzes)
 const loadingQuiz = ref(false)
+const marathonDiff = ref<DifficultyLevel>('beginner')
+const diffLabelZh = computed(() => ({ beginner: '初級', intermediate: '中級', advanced: '高級' }[marathonDiff.value]))
 
 const skillOptions = [
   { value: 'all', icon: '🌟', label: '全部' },
@@ -167,8 +189,8 @@ const skillOptions = [
 
 const currentQuestion = computed(() => quizQuestions.value[currentIndex.value])
 const progressPct = computed(() => ((currentIndex.value) / quizQuestions.value.length) * 100)
-const scorePct = computed(() => Math.round((correctCount.value / quizQuestions.value.length) * 100))
-const earnedPoints = computed(() => Math.round((correctCount.value / quizQuestions.value.length) * 100))
+const scorePct = computed(() => (answeredCount.value ? Math.round((correctCount.value / answeredCount.value) * 100) : 0))
+const earnedPoints = computed(() => scorePct.value)
 const scoreEmoji = computed(() => {
   const pct = scorePct.value
   if (pct >= 90) return '🏆'
@@ -186,12 +208,33 @@ function shuffle<T>(arr: T[]): T[] {
   return a
 }
 
+function beginWith(questions: QuizQuestion[]) {
+  quizQuestions.value = questions
+  currentIndex.value = 0
+  correctCount.value = 0
+  answeredCount.value = 0
+  quizStarted.value = true
+  quizCompleted.value = false
+  loadingQuiz.value = false
+}
+
 async function startQuiz() {
   loadingQuiz.value = true
   const lang = langStore.currentLanguage
 
+  // 題庫馬拉松：依程度出一大批混合題型
+  if (quizSource.value === 'marathon') {
+    const diff = levelFromSkill(progressStore.getProgress(lang).skillLevels.vocabulary)
+    marathonDiff.value = diff
+    const batch = await generateBatch(lang, diff, batchSizeFor(diff))
+    if (batch.length) { beginWith(batch); return }
+    loadingQuiz.value = false
+    alert('題庫載入失敗，請改用單字庫模式')
+    return
+  }
+
   // AI 依程度出題
-  if (useAiQuiz.value) {
+  if (quizSource.value === 'ai') {
     if (!hasApiKey()) {
       ai.error.value = '尚未設定金鑰'
       loadingQuiz.value = false
@@ -201,15 +244,7 @@ async function startQuiz() {
     try {
       const diff = levelToDifficulty(progressStore.getProgress(lang).skillLevels.vocabulary)
       const aiQs = await ai.generateQuiz(lang, diff, questionCount.value)
-      if (aiQs.length) {
-        quizQuestions.value = aiQs
-        currentIndex.value = 0
-        correctCount.value = 0
-        quizStarted.value = true
-        quizCompleted.value = false
-        loadingQuiz.value = false
-        return
-      }
+      if (aiQs.length) { beginWith(aiQs); return }
     } catch {
       loadingQuiz.value = false
       alert('AI 出題失敗，改用單字庫出題')
@@ -230,29 +265,30 @@ async function startQuiz() {
   }
 
   const pool = shuffle([...generated, ...curated])
-  quizQuestions.value = pool.slice(0, questionCount.value)
-  if (quizQuestions.value.length === 0) {
-    quizQuestions.value = dailyQuizzes.filter((q) => q.language === lang).slice(0, questionCount.value)
+  let picked = pool.slice(0, questionCount.value)
+  if (picked.length === 0) {
+    picked = dailyQuizzes.filter((q) => q.language === lang).slice(0, questionCount.value)
   }
-
-  currentIndex.value = 0
-  correctCount.value = 0
-  quizStarted.value = true
-  quizCompleted.value = false
-  loadingQuiz.value = false
+  beginWith(picked)
 }
 
 function onAnswer(correct: boolean) {
+  answeredCount.value++
   if (correct) correctCount.value++
+}
+
+function finishQuiz() {
+  quizCompleted.value = true
+  const total = Math.max(1, answeredCount.value)
+  progressStore.recordQuizComplete(langStore.currentLanguage, correctCount.value, total, 'vocabulary')
+  progressStore.addPoints(langStore.currentLanguage, earnedPoints.value)
 }
 
 function nextQuestion() {
   if (currentIndex.value < quizQuestions.value.length - 1) {
     currentIndex.value++
   } else {
-    quizCompleted.value = true
-    progressStore.recordQuizComplete(langStore.currentLanguage, correctCount.value, quizQuestions.value.length, 'vocabulary')
-    progressStore.addPoints(langStore.currentLanguage, earnedPoints.value)
+    finishQuiz()
   }
 }
 
@@ -290,6 +326,8 @@ function restartQuiz() {
 .chip.active { border-color: var(--accent); background: rgba(200, 151, 58, 0.12); color: var(--accent); }
 
 .ai-hint { font-size: 0.78rem; color: var(--text-muted); }
+.marathon-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 16px; font-size: 0.85rem; color: var(--text-secondary); font-weight: 700; flex-wrap: wrap; }
+.finish-early-btn { font-size: 0.8rem; padding: 5px 12px; }
 .ai-hint a { color: var(--accent); font-weight: 700; }
 .start-btn { width: 100%; max-width: 300px; justify-content: center; padding: 14px; font-size: 1rem; }
 

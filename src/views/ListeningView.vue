@@ -23,6 +23,13 @@
       </div>
     </div>
 
+    <!-- 依程度聽力題庫（TTS 播放，不需金鑰） -->
+    <BankPractice
+      title="🎧 聽力題庫（依程度自動出題）"
+      :kinds="listenKinds"
+      skill="listening"
+    />
+
     <!-- Sentence shadowing practice -->
     <div class="sentences-practice-section">
       <div class="sp-header">
@@ -153,7 +160,11 @@ import { useProgressStore } from '@/stores/progress'
 import { useAI, hasApiKey } from '@/composables/useAI'
 import { RouterLink } from 'vue-router'
 import QuizCard from '@/components/quiz/QuizCard.vue'
+import BankPractice from '@/components/quiz/BankPractice.vue'
+import type { BankKind } from '@/data/questionBank'
 import type { ListeningExercise, DifficultyLevel } from '@/types'
+
+const listenKinds: BankKind[] = ['listen-word']
 
 const langStore = useLanguageStore()
 const progressStore = useProgressStore()

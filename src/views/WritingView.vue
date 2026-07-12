@@ -60,7 +60,7 @@ import { useLanguageStore } from '@/stores/language'
 import { useProgressStore } from '@/stores/progress'
 import { useTextToSpeech } from '@/composables/useTextToSpeech'
 import { useAI, hasApiKey } from '@/composables/useAI'
-import { writingPrompts } from '@/data/writingPrompts'
+import { writingPrompts, generatedWritingPrompts } from '@/data/writingPrompts'
 import type { WritingPrompt, DifficultyLevel } from '@/types'
 
 const progressStore = useProgressStore()
@@ -104,10 +104,19 @@ const showSample = ref(false)
 
 const wordCount = computed(() => userText.value.trim().split(/\s+/).filter(Boolean).length)
 
-const currentPrompts = computed(() => [
-  ...aiPrompts.value.filter((p) => p.language === langStore.currentLanguage),
-  ...writingPrompts.filter((p) => p.language === langStore.currentLanguage),
-])
+const allPrompts = [...writingPrompts, ...generatedWritingPrompts()]
+
+// 依使用者寫作程度排序：符合程度的題目排前面
+const currentPrompts = computed(() => {
+  const lang = langStore.currentLanguage
+  const myDiff = levelToDifficulty(progressStore.getProgress(lang).skillLevels.writing)
+  const mine = allPrompts.filter((p) => p.language === lang)
+  return [
+    ...aiPrompts.value.filter((p) => p.language === lang),
+    ...mine.filter((p) => p.difficulty === myDiff),
+    ...mine.filter((p) => p.difficulty !== myDiff),
+  ]
+})
 
 function diffLabel(d: string) {
   return { beginner: '初級', intermediate: '中級', advanced: '高級' }[d] ?? d
