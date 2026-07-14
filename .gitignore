@@ -41,3 +41,4 @@ __screenshots__/
 raw-data/
 
 .firebase/
+*.bak-*
