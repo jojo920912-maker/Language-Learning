@@ -31,7 +31,7 @@ Vue 3 + TypeScript + Vite + Pinia + Firebase（Auth + Firestore + Hosting）。
 - Build：`npm run build 2>&1 | Select-String -Pattern "error TS|error during|✓ built" | Select-Object -First 10`
 - 本地跑：`.claude/launch.json` 的 `lingua-cafe`（注意 vite 要帶專案路徑位置參數）
 - Firebase Console：https://console.firebase.google.com/project/language-study-58fd8
-- 測試帳號：`claude.test.sipspeak@example.com` / `TestPass123!`（Firebase Auth 裡，使用者知情）
+- 測試帳號：`claude.test.sipspeak@example.com`（Firebase Auth 裡，使用者知情；密碼問使用者，勿寫進 repo）
 
 ## 已知未完成（backlog）
 - 階段 6：ja/ko/zh 單字的 `needsTranslation: true` 批次補繁中釋義與例句（先補 JLPT N5、TOPIK I）
