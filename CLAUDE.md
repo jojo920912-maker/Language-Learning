@@ -1,7 +1,7 @@
 # Sip & Speak（language-learning）專案守則
 
 Vue 3 + TypeScript + Vite + Pinia + Firebase（Auth + Firestore + Hosting）。
-使用者要求：每完成一件事 → commit + push（訊息寫暫存檔用 `git commit -F`）。
+使用者要求：每完成一件事 → **更新 README.md** → commit + push（訊息寫暫存檔用 `git commit -F`）。README 的功能表／題庫數據／架構圖要跟實況一致。
 
 ## ⚠️ 雙部署目標（本專案最大陷阱，曾造成三次白畫面事故）
 
