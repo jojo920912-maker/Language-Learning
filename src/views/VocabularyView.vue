@@ -30,6 +30,22 @@
         </button>
       </div>
 
+      <!-- 分類篩選（英文=主題、中日韓=詞性） -->
+      <div v-if="categories.length > 1" class="category-chips">
+        <button class="chip chip-sm" :class="{ active: selectedCategory === '' }" @click="selectedCategory = ''">
+          全部分類
+        </button>
+        <button
+          v-for="c in categories"
+          :key="c.name"
+          class="chip chip-sm"
+          :class="{ active: selectedCategory === c.name }"
+          @click="selectedCategory = selectedCategory === c.name ? '' : c.name"
+        >
+          {{ c.name }}（{{ c.count.toLocaleString() }}）
+        </button>
+      </div>
+
       <div class="vocab-toolbar">
         <div class="vocab-stats">
           <span>共 {{ filteredWords.length }} 個單字</span>
@@ -102,13 +118,27 @@ const showBookmarksOnly = ref(false)
 const showLearnedOnly = ref(false)
 const visibleCount = ref(PAGE_SIZE)
 
+const selectedCategory = ref('')
+
 async function selectDeck(deckId: string) {
   currentDeckId.value = deckId
   loading.value = true
   visibleCount.value = PAGE_SIZE
+  selectedCategory.value = ''
   rawWords.value = await loadDeck(langStore.currentLanguage, deckId)
   loading.value = false
 }
+
+/** 該 deck 的分類清單（按數量排序） */
+const categories = computed(() => {
+  const counts = new Map<string, number>()
+  for (const w of rawWords.value) {
+    if (w.category) counts.set(w.category, (counts.get(w.category) ?? 0) + 1)
+  }
+  return [...counts.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count)
+})
 
 // 語言切換時自動載入第一個 deck
 watch(
@@ -125,8 +155,11 @@ watch(
 const currentDeck = computed(() => decks.value.find((d) => d.id === currentDeckId.value))
 
 /** WordEntry → WordCard 用的 VocabularyWord 格式 */
-const allWords = computed<VocabularyWord[]>(() =>
-  rawWords.value.map((w) => ({
+const allWords = computed<VocabularyWord[]>(() => {
+  const source = selectedCategory.value
+    ? rawWords.value.filter((w) => w.category === selectedCategory.value)
+    : rawWords.value
+  return source.map((w) => ({
     id: `${langStore.currentLanguage}-${currentDeckId.value}-${w.word}`,
     word: w.word,
     language: langStore.currentLanguage,
@@ -138,9 +171,9 @@ const allWords = computed<VocabularyWord[]>(() =>
       ? [{ text: w.exampleSentence, translation: w.exampleTranslation ?? '' }]
       : [],
     level: currentDeck.value?.difficulty ?? 'intermediate',
-    tags: [w.level, ...(w.needsTranslation ? ['待翻譯'] : [])],
-  })),
-)
+    tags: [w.level, ...(w.category ? [w.category] : []), ...(w.needsTranslation ? ['待翻譯'] : [])],
+  }))
+})
 
 const filteredWords = computed(() => {
   let words = allWords.value
@@ -186,7 +219,9 @@ const bookmarkCount = computed(() => allWords.value.filter((w) => progressStore.
 }
 .search-input:focus { border-color: var(--accent); }
 
-.deck-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+.deck-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.category-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
+.chip-sm { font-size: 0.76rem; padding: 4px 12px; }
 .chip { padding: 7px 16px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--bg-card); color: var(--text-secondary); font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.15s; }
 .chip:hover { border-color: var(--accent); color: var(--accent); }
 .chip.active { border-color: var(--accent); background: rgba(200, 151, 58, 0.12); color: var(--accent); }

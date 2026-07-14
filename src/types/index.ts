@@ -29,6 +29,8 @@ export interface WordEntry {
   exampleSentence: string | null
   exampleTranslation: string | null
   needsTranslation?: boolean
+  /** 分類：英文=主題（辦公日常…）、中韓=詞性、日文=詞尾推斷詞性 */
+  category?: string | null
 }
 
 export type ExamType =

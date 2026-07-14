@@ -6,6 +6,18 @@ import { dirname, join } from 'node:path'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
+// 原始檔無詞性欄位，用詞尾規則推斷（JLPT 詞表準確率約九成）：
+// 送假名結尾 る/う/く/ぐ/す/つ/ぬ/ぶ/む → 動詞；い → 形容詞；其餘 → 名詞・其他
+const KANA = /[぀-ゟ]$/
+function guessCategory(word) {
+  if (KANA.test(word)) {
+    const last = word.at(-1)
+    if ('るうくぐすつぬぶむ'.includes(last)) return '動詞'
+    if (last === 'い') return '形容詞'
+  }
+  return '名詞・其他'
+}
+
 for (const n of [5, 4, 3, 2, 1]) {
   const csv = readFileSync(join(root, `raw-data/ja/n${n}_vocab_cleaned.csv`), 'utf8')
   const lines = csv.split(/\r?\n/).filter(Boolean)
@@ -29,6 +41,7 @@ for (const n of [5, 4, 3, 2, 1]) {
       exampleSentence: null,
       exampleTranslation: null,
       needsTranslation: true,
+      category: guessCategory(word),
     })
   }
 

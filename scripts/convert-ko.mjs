@@ -12,6 +12,18 @@ const tsv = readFileSync(join(root, 'raw-data/ko/topik_vocab.tsv'), 'utf8')
 
 const { data } = Papa.parse(tsv, { header: true, delimiter: '\t', skipEmptyLines: true })
 
+// 韓文詞性 → 中文標籤
+const POS_MAP = {
+  '명사': '名詞', '의존명사': '名詞', '고유 명사': '名詞',
+  '동사': '動詞', '보조 용언': '動詞',
+  '형용사': '形容詞', '부사': '副詞', '관형사': '冠形詞',
+  '대명사': '代詞', '수사': '數詞', '감탄사': '感嘆詞',
+  '조사': '助詞', '접사': '接辭',
+}
+function koCategory(pos) {
+  return POS_MAP[(pos ?? '').trim()] ?? '其他'
+}
+
 const buckets = { topik1: [], topik2: [] }
 const seen = { topik1: new Set(), topik2: new Set() }
 let skipped = 0
@@ -42,6 +54,7 @@ for (const row of data) {
     exampleSentence: null,
     exampleTranslation: null,
     needsTranslation: true,
+    category: koCategory(row.part_of_speech),
   })
 }
 

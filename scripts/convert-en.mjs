@@ -25,6 +25,7 @@ for (const item of src) {
     level: 'TOEIC',
     exampleSentence: ex?.english ?? null,
     exampleTranslation: ex?.chinese ?? null,
+    category: item.category ?? null, // 主題分類（辦公日常、行銷與銷售…共 15 類）
   })
 }
 
