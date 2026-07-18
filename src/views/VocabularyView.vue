@@ -63,10 +63,10 @@
           >
             🗂️ 依分類分組
           </button>
-          <button class="btn btn-ghost toggle-btn" :class="{ active: showBookmarksOnly }" @click="showBookmarksOnly = !showBookmarksOnly">
+          <button class="btn btn-ghost toggle-btn" :class="{ active: showBookmarksOnly }" @click="showBookmarksOnly = !showBookmarksOnly; groupByCategory = false">
             🔖 只看書籤
           </button>
-          <button class="btn btn-ghost toggle-btn" :class="{ active: showLearnedOnly }" @click="showLearnedOnly = !showLearnedOnly">
+          <button class="btn btn-ghost toggle-btn" :class="{ active: showLearnedOnly }" @click="showLearnedOnly = !showLearnedOnly; groupByCategory = false">
             ✓ 只看已學
           </button>
         </div>
@@ -82,8 +82,8 @@
         <p class="empty-text">找不到符合條件的單字</p>
       </div>
 
-      <!-- 依分類分組檢視 -->
-      <template v-else-if="groupByCategory">
+      <!-- 依分類分組檢視（無分類資料時自動退回一般列表） -->
+      <template v-else-if="groupByCategory && groupedSections.length > 0">
         <section v-for="sec in groupedSections" :key="sec.name" class="category-section">
           <div class="category-section-header">
             <h2 class="category-section-title">🗂️ {{ sec.name }} <span class="category-section-count">{{ sec.count.toLocaleString() }} 字</span></h2>
@@ -204,7 +204,8 @@ const allWords = computed<VocabularyWord[]>(() => {
   return source.map(toCard)
 })
 
-const groupByCategory = ref(false)
+// 預設就用分組檢視（使用者期待一進來就看到分類）
+const groupByCategory = ref(true)
 const GROUP_PREVIEW = 6
 
 /** 分組檢視：每分類先顯示 6 個（套用搜尋條件） */
