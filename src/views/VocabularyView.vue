@@ -40,7 +40,7 @@
           :key="c.name"
           class="chip chip-sm"
           :class="{ active: selectedCategory === c.name }"
-          @click="selectedCategory = selectedCategory === c.name ? '' : c.name"
+          @click="selectedCategory = selectedCategory === c.name ? '' : c.name; groupByCategory = false"
         >
           {{ c.name }}（{{ c.count.toLocaleString() }}）
         </button>
@@ -55,6 +55,14 @@
           <span>書籤 {{ bookmarkCount }} 個</span>
         </div>
         <div class="view-toggles">
+          <button
+            v-if="categories.length > 1"
+            class="btn btn-ghost toggle-btn"
+            :class="{ active: groupByCategory }"
+            @click="groupByCategory = !groupByCategory; if (groupByCategory) selectedCategory = ''"
+          >
+            🗂️ 依分類分組
+          </button>
           <button class="btn btn-ghost toggle-btn" :class="{ active: showBookmarksOnly }" @click="showBookmarksOnly = !showBookmarksOnly">
             🔖 只看書籤
           </button>
@@ -74,6 +82,23 @@
         <p class="empty-text">找不到符合條件的單字</p>
       </div>
 
+      <!-- 依分類分組檢視 -->
+      <template v-else-if="groupByCategory">
+        <section v-for="sec in groupedSections" :key="sec.name" class="category-section">
+          <div class="category-section-header">
+            <h2 class="category-section-title">🗂️ {{ sec.name }} <span class="category-section-count">{{ sec.count.toLocaleString() }} 字</span></h2>
+            <button v-if="sec.count > sec.cards.length" class="btn btn-ghost toggle-btn"
+              @click="selectedCategory = sec.name; groupByCategory = false">
+              看全部 {{ sec.count.toLocaleString() }} 個 →
+            </button>
+          </div>
+          <div class="words-grid">
+            <WordCard v-for="word in sec.cards" :key="word.id" :word="word" />
+          </div>
+        </section>
+      </template>
+
+      <!-- 一般列表檢視 -->
       <template v-else>
         <div class="words-grid">
           <WordCard v-for="word in visibleWords" :key="word.id" :word="word" />
@@ -155,11 +180,8 @@ watch(
 const currentDeck = computed(() => decks.value.find((d) => d.id === currentDeckId.value))
 
 /** WordEntry → WordCard 用的 VocabularyWord 格式 */
-const allWords = computed<VocabularyWord[]>(() => {
-  const source = selectedCategory.value
-    ? rawWords.value.filter((w) => w.category === selectedCategory.value)
-    : rawWords.value
-  return source.map((w) => ({
+function toCard(w: WordEntry): VocabularyWord {
+  return {
     id: `${langStore.currentLanguage}-${currentDeckId.value}-${w.word}`,
     word: w.word,
     language: langStore.currentLanguage,
@@ -172,7 +194,34 @@ const allWords = computed<VocabularyWord[]>(() => {
       : [],
     level: currentDeck.value?.difficulty ?? 'intermediate',
     tags: [w.level, ...(w.category ? [w.category] : []), ...(w.needsTranslation ? ['待翻譯'] : [])],
-  }))
+  }
+}
+
+const allWords = computed<VocabularyWord[]>(() => {
+  const source = selectedCategory.value
+    ? rawWords.value.filter((w) => w.category === selectedCategory.value)
+    : rawWords.value
+  return source.map(toCard)
+})
+
+const groupByCategory = ref(false)
+const GROUP_PREVIEW = 6
+
+/** 分組檢視：每分類先顯示 6 個（套用搜尋條件） */
+const groupedSections = computed(() => {
+  if (!groupByCategory.value) return []
+  const q = searchQuery.value.toLowerCase()
+  const match = (w: WordEntry) =>
+    !q ||
+    w.word.toLowerCase().includes(q) ||
+    w.meaning.toLowerCase().includes(q) ||
+    (w.reading ?? '').toLowerCase().includes(q)
+  return categories.value
+    .map((c) => {
+      const words = rawWords.value.filter((w) => w.category === c.name && match(w))
+      return { name: c.name, count: words.length, cards: words.slice(0, GROUP_PREVIEW).map(toCard) }
+    })
+    .filter((s) => s.count > 0)
 })
 
 const filteredWords = computed(() => {
@@ -222,6 +271,11 @@ const bookmarkCount = computed(() => allWords.value.filter((w) => progressStore.
 .deck-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
 .category-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px; }
 .chip-sm { font-size: 0.76rem; padding: 4px 12px; }
+
+.category-section { margin-bottom: 36px; }
+.category-section-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.category-section-title { font-size: 1.15rem; font-weight: 600; }
+.category-section-count { font-size: 0.82rem; font-weight: 400; color: var(--text-muted); margin-left: 6px; }
 .chip { padding: 7px 16px; border-radius: 20px; border: 1.5px solid var(--border); background: var(--bg-card); color: var(--text-secondary); font-size: 0.85rem; font-weight: 700; cursor: pointer; transition: all 0.15s; }
 .chip:hover { border-color: var(--accent); color: var(--accent); }
 .chip.active { border-color: var(--accent); background: rgba(200, 151, 58, 0.12); color: var(--accent); }
