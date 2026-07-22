@@ -57,11 +57,9 @@
           <div class="option-group">
             <label class="option-label">出題來源</label>
             <div class="option-chips">
-              <button class="chip" :class="{ active: quizSource === 'deck' }" @click="quizSource = 'deck'">📚 單字庫（免費）</button>
+              <button class="chip" :class="{ active: quizSource === 'deck' }" @click="quizSource = 'deck'">📚 單字庫</button>
               <button class="chip" :class="{ active: quizSource === 'marathon' }" @click="quizSource = 'marathon'">🏃 題庫馬拉松（依程度）</button>
-              <button class="chip" :class="{ active: quizSource === 'ai' }" @click="quizSource = 'ai'">✨ AI 依程度出題</button>
             </div>
-            <p v-if="quizSource === 'ai'" class="ai-hint">需先在<RouterLink to="/profile">個人資料</RouterLink>設定 Gemini 金鑰</p>
             <p v-if="quizSource === 'marathon'" class="ai-hint">
               依你的程度出一大批混合題型（初級 250、中級 500、高級 1000 題），隨時可提前結算。
               <span v-if="bankCount !== null">本語言題庫共 {{ bankCount.toLocaleString() }} 題。</span>
@@ -139,14 +137,10 @@ import { dailyQuizzes } from '@/data/quizzes'
 import { DECKS } from '@/data/decks'
 import { generateVocabQuiz } from '@/data/quizGenerator'
 import { generateBatch, bankTotal, batchSizeFor, levelFromSkill } from '@/data/questionBank'
-import { useAI, hasApiKey } from '@/composables/useAI'
 import QuizCard from '@/components/quiz/QuizCard.vue'
 import type { QuizQuestion, DifficultyLevel } from '@/types'
 
-const ai = useAI()
-const quizSource = ref<'deck' | 'marathon' | 'ai'>('deck')
-
-const levelToDifficulty = levelFromSkill
+const quizSource = ref<'deck' | 'marathon'>('deck')
 
 const langStore = useLanguageStore()
 const progressStore = useProgressStore()
@@ -231,24 +225,6 @@ async function startQuiz() {
     loadingQuiz.value = false
     alert('題庫載入失敗，請改用單字庫模式')
     return
-  }
-
-  // AI 依程度出題
-  if (quizSource.value === 'ai') {
-    if (!hasApiKey()) {
-      ai.error.value = '尚未設定金鑰'
-      loadingQuiz.value = false
-      alert('請先到個人資料頁設定 Gemini API 金鑰')
-      return
-    }
-    try {
-      const diff = levelToDifficulty(progressStore.getProgress(lang).skillLevels.vocabulary)
-      const aiQs = await ai.generateQuiz(lang, diff, questionCount.value)
-      if (aiQs.length) { beginWith(aiQs); return }
-    } catch {
-      loadingQuiz.value = false
-      alert('AI 出題失敗，改用單字庫出題')
-    }
   }
 
   // 精選題（人工撰寫，含閱讀/聽力/文法）

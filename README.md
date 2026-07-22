@@ -1,6 +1,6 @@
 # ☕ Sip & Speak — 語文學習網站
 
-在咖啡香中探索世界語言。支援英文、日文、韓文、中文四種語言的完整學習：44,000+ 單字庫、18 萬+ 自動生成題庫、依程度出題、AI 輔助，涵蓋 TOEIC／JLPT／TOPIK／HSK 等檢定。
+在咖啡香中探索世界語言。支援英文、日文、韓文、中文四種語言的完整學習：44,000+ 單字庫、18 萬+ 自動生成題庫、依程度出題，涵蓋 TOEIC／JLPT／TOPIK／HSK 等檢定。
 
 ![Vue 3](https://img.shields.io/badge/Vue-3.x-4FC08D?logo=vue.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript)
@@ -36,12 +36,8 @@
 - **依使用者能力自動調整**：初級一批 250 題／中級 500／高級 1000，答題成績回寫能力值，難度隨進步升級
 - 入口：每日測驗「🏃 題庫馬拉松」、閱讀頁「閱讀理解題庫」、聽力頁「聽力題庫」、考試準備（各檢定對應級數出題），皆可提前結算
 
-### ✨ AI 出題（Gemini，選用）
-- 個人資料頁填入免費的 Google Gemini API 金鑰後啟用（金鑰只存瀏覽器）
-- 閱讀／聽力／寫作／測驗皆可「AI 依程度生成」全新內容
-
 ### 聽說讀寫
-- **📰 閱讀**：分級文章＋理解題＋題庫練習＋AI 生成
+- **📰 閱讀**：分級文章＋理解題＋題庫練習
 - **🎧 聽力**：情境對話練習題、句子跟讀（可調速 0.7x~1.2x）、聽力題庫
 - **✍️ 寫作**：172 題分級寫作題（28 精選＋144 生成），符合程度的優先顯示，含範文與字數統計
 - **🎙️ 口說**：跟讀例句、語速調整、音標對照
@@ -62,7 +58,7 @@ src/
 │   ├── layout/        # AppHeader、MobileBottomNav
 │   ├── quiz/          # QuizCard、BankPractice（題庫練習元件）
 │   └── vocabulary/    # WordCard
-├── composables/       # useTextToSpeech（Web Speech API）、useAI（Gemini）
+├── composables/       # useTextToSpeech（Web Speech API）
 ├── data/
 │   ├── {en,ja,ko,zh}/{exam}/words.json   # 44k 單字（lazy chunk）
 │   ├── decks.ts       # 級數設定與懶載入
@@ -75,7 +71,7 @@ src/
 scripts/convert-*.mjs  # 原始資料 → words.json 轉換腳本
 ```
 
-**Tech Stack：** Vue 3（Composition API）+ TypeScript + Vite 8 + Pinia + Vue Router 4 + Firebase（Auth/Firestore/Hosting）+ Web Speech API + Google Gemini（選用）
+**Tech Stack：** Vue 3（Composition API）+ TypeScript + Vite 8 + Pinia + Vue Router 4 + Firebase（Auth/Firestore/Hosting）+ Web Speech API
 
 **單字資料來源（開源）：** JLPT_Vocabulary、complete-hsk-vocabulary、combined_korean_vocabulary_list、toeic-vocab-tw（Hugging Face）
 

@@ -22,7 +22,7 @@ Vue 3 + TypeScript + Vite + Pinia + Firebase（Auth + Firestore + Hosting）。
 
 ## 架構速查
 - 資料：`src/data/{en,ja,ko,zh}/{exam}/words.json`（44k 單字，lazy load via `src/data/decks.ts`）；文章 `articles.ts`；寫作題 `writingPrompts.ts`；題庫 `quizzes.ts`
-- 自動出題：`src/data/quizGenerator.ts`（從單字庫）＋ `src/composables/useAI.ts`（Gemini，金鑰存使用者 localStorage，個人資料頁設定）
+- 自動出題：`src/data/questionBank.ts`（題庫引擎，5 題型 × 分級 × 依程度批量）＋ `src/data/quizGenerator.ts`（單字題）。**AI/Gemini 功能已於 2026-07 依使用者要求整個移除，勿再加回**
 - 帳號：Firebase Auth（`src/stores/user.ts`）；學習進度存 Firestore `users/{uid}/progress/data`（`src/stores/progress.ts`，1 秒 debounce）
 - 支援語言只有 en/ja/ko/zh（`Language` type）；新增語言要同步改 types、languages.ts、decks.ts、progress.ts 的 ALL_LANGS
 - 轉換腳本在 `scripts/convert-*.mjs`，原始資料 `raw-data/`（已 gitignore，遺失可照 scripts 開頭註解重抓）

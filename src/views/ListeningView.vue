@@ -56,13 +56,7 @@
 
     <!-- Listening exercises -->
     <div class="exercises-section">
-      <div class="sp-header">
-        <h2 class="section-title" style="margin-bottom:4px">聽力練習題</h2>
-        <button class="btn btn-primary" :disabled="ai.loading.value" @click="genAiListening">
-          {{ ai.loading.value ? '生成中…' : '✨ AI 依程度生成' }}
-        </button>
-      </div>
-      <p v-if="ai.error.value" class="ai-error">⚠️ {{ ai.error.value }} <RouterLink to="/profile">前往設定金鑰</RouterLink></p>
+      <h2 class="section-title" style="margin-bottom:20px">聽力練習題</h2>
       <div class="exercise-list">
         <div v-for="ex in currentExercises" :key="ex.id" class="exercise-card card">
           <div class="exercise-header">
@@ -156,19 +150,14 @@ import { useTextToSpeech } from '@/composables/useTextToSpeech'
 import { listeningQuestions } from '@/data/quizzes'
 import { DECKS } from '@/data/decks'
 import { loadSentencePractice, type SentenceItem } from '@/data/sentencePractice'
-import { useProgressStore } from '@/stores/progress'
-import { useAI, hasApiKey } from '@/composables/useAI'
-import { RouterLink } from 'vue-router'
 import QuizCard from '@/components/quiz/QuizCard.vue'
 import BankPractice from '@/components/quiz/BankPractice.vue'
 import type { BankKind } from '@/data/questionBank'
-import type { ListeningExercise, DifficultyLevel } from '@/types'
+import type { ListeningExercise } from '@/types'
 
 const listenKinds: BankKind[] = ['listen-word']
 
 const langStore = useLanguageStore()
-const progressStore = useProgressStore()
-const ai = useAI()
 const { speak, stop, isSpeaking } = useTextToSpeech()
 const currentConfig = computed(() => langStore.currentConfig)
 
@@ -372,35 +361,9 @@ const exercises: ListeningExercise[] = [
   },
 ]
 
-const aiExercises = ref<ListeningExercise[]>([])
 const currentExercises = computed(() =>
-  [...aiExercises.value, ...exercises].filter((e) => e.language === langStore.currentLanguage),
+  exercises.filter((e) => e.language === langStore.currentLanguage),
 )
-
-function levelToDifficulty(pct: number): DifficultyLevel {
-  if (pct < 34) return 'beginner'
-  if (pct < 67) return 'intermediate'
-  return 'advanced'
-}
-
-async function genAiListening() {
-  if (!hasApiKey()) { ai.error.value = '尚未設定 Gemini API 金鑰'; return }
-  const lang = langStore.currentLanguage
-  const diff = levelToDifficulty(progressStore.getProgress(lang).skillLevels.listening)
-  try {
-    const r = await ai.generateListening(lang, diff)
-    const id = `ai-le-${Date.now()}`
-    aiExercises.value.unshift({
-      id, title: r.title, transcript: r.transcript, language: lang, difficulty: diff,
-      source: 'AI 生成', duration: Math.max(20, Math.round(r.transcript.length / 5)),
-      questions: r.questions.map((q, i) => ({
-        id: `${id}-q${i}`, type: 'multiple-choice', skill: 'listening', language: lang,
-        question: q.question, options: q.options, correctAnswer: q.correctAnswer,
-        explanation: q.explanation, difficulty: diff,
-      })),
-    })
-  } catch { /* ai.error shown */ }
-}
 
 function diffLabel(d: string) {
   return { beginner: '初級', intermediate: '中級', advanced: '高級' }[d] ?? d
@@ -434,8 +397,6 @@ function openExercise(ex: ListeningExercise) {
 .sentences-practice-section { margin-bottom: 40px; }
 .sp-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
 .sp-loading { text-align: center; padding: 30px; color: var(--text-muted); }
-.ai-error { font-size: 0.85rem; color: #c62828; margin-bottom: 16px; }
-.ai-error a { color: var(--accent); font-weight: 700; }
 .sentence-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; margin-top: 16px; }
 .sentence-card { padding: 16px 18px; }
 .sentence-text { font-size: 1rem; color: var(--text-primary); line-height: 1.6; margin-bottom: 6px; }

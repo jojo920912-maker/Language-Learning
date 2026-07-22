@@ -1,15 +1,7 @@
 <template>
   <div class="container page-content">
-    <div class="page-head-row">
-      <div>
-        <h1 class="section-title">✍️ 寫作練習</h1>
-        <p class="section-subtitle">{{ currentConfig.flag }} {{ currentConfig.name }} · 針對考試題型進行寫作訓練</p>
-      </div>
-      <button class="btn btn-primary ai-btn" :disabled="ai.loading.value" @click="genAiPrompt">
-        {{ ai.loading.value ? '生成中…' : '✨ AI 依程度出題' }}
-      </button>
-    </div>
-    <p v-if="ai.error.value" class="ai-error">⚠️ {{ ai.error.value }} <RouterLink to="/profile">前往設定金鑰</RouterLink></p>
+    <h1 class="section-title">✍️ 寫作練習</h1>
+    <p class="section-subtitle">{{ currentConfig.flag }} {{ currentConfig.name }} · 針對考試題型進行寫作訓練</p>
 
     <div class="prompts-grid">
       <div v-for="prompt in currentPrompts" :key="prompt.id" class="prompt-card card">
@@ -55,43 +47,18 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { RouterLink } from 'vue-router'
 import { useLanguageStore } from '@/stores/language'
 import { useProgressStore } from '@/stores/progress'
 import { useTextToSpeech } from '@/composables/useTextToSpeech'
-import { useAI, hasApiKey } from '@/composables/useAI'
 import { writingPrompts, generatedWritingPrompts } from '@/data/writingPrompts'
 import type { WritingPrompt, DifficultyLevel } from '@/types'
 
 const progressStore = useProgressStore()
-const ai = useAI()
 
 function levelToDifficulty(pct: number): DifficultyLevel {
   if (pct < 34) return 'beginner'
   if (pct < 67) return 'intermediate'
   return 'advanced'
-}
-
-const aiPrompts = ref<WritingPrompt[]>([])
-
-async function genAiPrompt() {
-  if (!hasApiKey()) {
-    ai.error.value = '尚未設定 Gemini API 金鑰'
-    return
-  }
-  const lang = langStore.currentLanguage
-  const diff = levelToDifficulty(progressStore.getProgress(lang).skillLevels.writing)
-  try {
-    const r = await ai.generateWritingPrompt(lang, diff)
-    aiPrompts.value.unshift({
-      id: `ai-wp-${Date.now()}`,
-      topic: r.topic,
-      description: r.description,
-      language: lang,
-      difficulty: diff,
-      wordLimit: diff === 'beginner' ? 200 : diff === 'intermediate' ? 300 : 400,
-    })
-  } catch { /* error shown via ai.error */ }
 }
 
 const langStore = useLanguageStore()
@@ -112,7 +79,6 @@ const currentPrompts = computed(() => {
   const myDiff = levelToDifficulty(progressStore.getProgress(lang).skillLevels.writing)
   const mine = allPrompts.filter((p) => p.language === lang)
   return [
-    ...aiPrompts.value.filter((p) => p.language === lang),
     ...mine.filter((p) => p.difficulty === myDiff),
     ...mine.filter((p) => p.difficulty !== myDiff),
   ]
@@ -140,10 +106,6 @@ function readUserText() {
 </script>
 
 <style scoped>
-.page-head-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
-.ai-btn { flex-shrink: 0; }
-.ai-error { font-size: 0.85rem; color: #c62828; margin-bottom: 16px; }
-.ai-error a { color: var(--accent); font-weight: 700; }
 .prompts-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 20px; }
 .prompt-card { padding: 20px; }
 .prompt-header { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
